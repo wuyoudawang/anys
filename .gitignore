@@ -1,0 +1,33 @@
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
+
+# Folders
+_obj
+_test
+target
+_out
+
+# Architecture specific extensions/prefixes
+*.[568vq]
+[568vq].out
+
+*.cgo1.go
+*.cgo2.c
+_cgo_defun.c
+_cgo_gotypes.go
+anys_*
+anys_freebsd_386
+anys_freebsd_amd64
+anys_freebsd_arm
+_testmain.go
+
+*.exe
+*.cover
+*.txt
+
+dist
+.temp
+a.b
+DEBIAN
