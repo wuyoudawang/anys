@@ -67,6 +67,14 @@ func (l *Lottery) addGross(v float64) {
 	l.gross += v
 }
 
+func (l *Lottery) GetLen() int {
+	return l.count * l.cvt.terms
+}
+
+func (l *Lottery) GetGross() float64 {
+	return l.gross
+}
+
 func (l *Lottery) GetMaxReward() float64 {
 	if l.maxReward == 0 {
 		l.maxReward = l.gross - l.gross*l.hedging
@@ -100,12 +108,15 @@ func (l *Lottery) Dispatch(p *model.Projects) error {
 		return fmt.Errorf("call a non-existent method '%s'", name)
 	}
 
-	bets := l.splitBet(p.GetString("code"))
+	code := strings.Trim(p.GetString("code"), ";")
+	bets := l.splitBet(code)
+
 	for _, bet := range bets {
 
 		err, flag := fn(bet, p)
 		if err != nil {
-			log.Warning("project(%d):'%s' has an error '%s'", p.GetId(), bet, err.Error())
+			log.Warning("project(id '%d', funcname '%s', bet '%s') has an error '%s'",
+				p.GetId(), name, bet, err.Error())
 		}
 
 		if flag == done {
@@ -124,7 +135,7 @@ func (l *Lottery) Dispatch(p *model.Projects) error {
 
 // choose a random number
 func (l *Lottery) Draw() string {
-	fmt.Println(l.t.Get(276).subtotal)
+
 	i := 0
 	if len(l.nums) > 1 {
 		rand.Seed(time.Now().UnixNano())
@@ -133,3 +144,25 @@ func (l *Lottery) Draw() string {
 
 	return l.nums[i]
 }
+
+func (l *Lottery) GetRecords(key int) (set []*record) {
+	var n *Number
+	for i := 1; i <= l.count; i++ {
+		keys := l.cvt.getChildrenKey(key, i)
+
+		for _, key := range keys {
+			n = l.t.Get(key)
+
+			if n != nil {
+				for _, r := range n.records {
+					set = append(set, r)
+				}
+			}
+
+		}
+	}
+
+	return
+}
+
+func (l *Lottery) SendReward() {}

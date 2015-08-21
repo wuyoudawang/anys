@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var c = newConvert(0, 11)
+var c = newConvert(1, 9)
 
 func Test_Convert(t *testing.T) {
 
@@ -37,5 +37,10 @@ func TestFomart(t *testing.T) {
 func TestRepeatNum(t *testing.T) {
 	set := []string{"1", "2", "3"}
 	rel := c.repeatNum(set, "4", 2)
+	fmt.Println(rel)
+}
+
+func TestSumCom(t *testing.T) {
+	rel := c.getSumCom(11, 3)
 	fmt.Println(rel)
 }

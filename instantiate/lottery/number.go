@@ -23,7 +23,7 @@ func (n *Number) Add(id int64, amount float64) {
 
 	r.currPunts++
 
-	n.subtotal += r.amount
+	n.subtotal += amount
 	n.records[id] = r
 }
 

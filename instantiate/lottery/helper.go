@@ -83,6 +83,10 @@ func (c *convert) getFlag(r string) (int, error) {
 		return f, nil
 	}
 
+	if r == placeHolder {
+		return 0, nil
+	}
+
 	return -1, fmt.Errorf("key(%s) do not exist", r)
 }
 
@@ -180,6 +184,38 @@ func (c *convert) getGenerateFn() func(n int, fix ...int) (nums []string) {
 	return c.generate
 }
 
+func (c *convert) property(perty string) {
+	switch perty {
+	case "permutation":
+		c.generate = func(n int, fix ...int) (nums []string) {
+			all := c.getAllNum()
+			all = c.formatString(all...)
+			prefix := c.formatInt(fix...)
+			var set []string
+
+		top:
+			for _, n := range all {
+				for _, p := range prefix {
+					if n == p {
+						continue top
+					}
+				}
+
+				set = append(set, n)
+			}
+
+			permutation := c.getPermutation(set, n-len(fix))
+			for _, item := range permutation {
+				str := strings.Join(prefix, "") + strings.Join(item, "")
+				nums = append(nums, str)
+			}
+
+			return
+		}
+	case "selection":
+	}
+}
+
 func (c *convert) formatInt(v ...int) []string {
 	var rel []string
 
@@ -197,6 +233,8 @@ func (c *convert) formatString(s ...string) []string {
 	for _, str := range s {
 		if len(str) < c.terms {
 			str = strings.Repeat("0", c.terms-len(str)) + str
+			rel = append(rel, str)
+		} else {
 			rel = append(rel, str)
 		}
 	}
@@ -265,6 +303,29 @@ func (c *convert) getChildrenKey(parent int, n int) (children []int) {
 			}
 			i++
 		}
+	}
+
+	return
+}
+
+func (c *convert) getSelection(set []string, n int) (rel [][]string) {
+
+	for i := 0; i < n; i++ {
+		var tmp [][]string
+
+		for _, num := range set {
+			if len(rel) > 0 {
+
+				for _, item := range rel {
+					item = append(item, num)
+					tmp = append(tmp, item)
+				}
+			} else {
+				tmp = append(tmp, []string{num})
+			}
+		}
+
+		rel = tmp
 	}
 
 	return
@@ -352,6 +413,10 @@ func (c *convert) repeatNum(set []string, num string, n int) [][]string {
 					}
 				}
 			} else {
+				if j < len(set) && set[j] == num {
+					continue
+				}
+
 				item := []string{}
 				item = append(item, set[0:j]...)
 				item = append(item, num)
@@ -365,4 +430,94 @@ func (c *convert) repeatNum(set []string, num string, n int) [][]string {
 	}
 
 	return dst
+}
+
+func (c *convert) size(big bool) []string {
+	mid := len(c.cache)/2 + c.start
+	bigBound := 0
+	smallBound := 0
+	var rel []string
+
+	if len(c.cache)%2 == 0 {
+		bigBound = mid
+		smallBound = mid - 1
+	} else {
+		bigBound = mid + 1
+		smallBound = mid - 1
+	}
+
+	for i := 0; i < len(c.cache); i++ {
+		n := i + c.start
+
+		if big {
+			if n >= bigBound {
+				rel = append(rel, fmt.Sprintf("%d", n))
+			}
+		} else {
+			if n <= smallBound {
+				rel = append(rel, fmt.Sprintf("%d", n))
+			}
+		}
+	}
+
+	return rel
+}
+
+func (c *convert) odd(s bool) []string {
+	var rel []string
+
+	for i := 0; i < len(c.cache); i++ {
+		n := i + c.start
+
+		if s {
+			if n%2 != 0 {
+				rel = append(rel, fmt.Sprintf("%d", n))
+			}
+		} else {
+			if n%2 == 0 {
+				rel = append(rel, fmt.Sprintf("%d", n))
+			}
+		}
+	}
+
+	return rel
+}
+
+func (c *convert) getSumCom(sum int, n int) (set [][]string) {
+
+	if sum < c.start {
+		return
+	}
+
+	if n == 1 {
+
+		if sum <= c.start+len(c.cache)-1 {
+			set = append(set, []string{fmt.Sprintf("%d", sum)})
+		}
+
+		return
+	}
+
+	for i := 0; i < len(c.cache); i++ {
+		if v := c.start + i; v <= sum {
+			num := fmt.Sprintf("%d", v)
+			tmp := c.getSumCom(sum-v, n-1)
+
+			for _, item := range tmp {
+				item = append(item, num)
+				set = append(set, item)
+			}
+		}
+	}
+
+	return
+}
+
+func (c *convert) getAllNum() (set []string) {
+	for i := 0; i < len(c.cache); i++ {
+		num := fmt.Sprintf("%d", c.start+i)
+		set = append(set, num)
+	}
+
+	return
 }

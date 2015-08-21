@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"anys/instantiate/lottery/model"
@@ -49,7 +50,7 @@ func NewMethod(l *Lottery, conf string) (*Method, error) {
 		method.combinations = int64(combinations)
 	}
 
-	if maxPunts, exists := m["combinations"].(float64); !exists {
+	if maxPunts, exists := m["maxPunts"].(float64); !exists {
 		method.maxPunts = 1
 	} else {
 		method.maxPunts = int64(maxPunts)
@@ -62,10 +63,11 @@ func NewMethod(l *Lottery, conf string) (*Method, error) {
 	return method, nil
 }
 
-func (m *Method) getReward(p *model.Projects, bets int64) float64 {
+func (m *Method) getReward(p *model.Projects, bets float64) float64 {
 	reward := p.GetFloat64("omodel") /
 		float64(1000*p.GetMode()) *
-		float64(m.combinations*bets*p.GetInt64("multiple"))
+		float64(m.combinations*p.GetInt64("multiple")) *
+		bets / m.rate
 
 	if reward > m.maxReward {
 		reward = m.maxReward
@@ -259,24 +261,24 @@ func (m *Method) getKeys(bet string, pos ...int) ([]int, error) {
 	var keys, prev []int
 	var err error
 
-	if len(pos) < 0 {
+	if len(pos) == 0 {
 		if strings.Contains(bet, placeHolder) {
 			return keys, errBetFormat
 		}
 
 		set := m.splitBit(bet)
-		for _, i := range pos {
+		for i := 1; i <= m.lty.count; i++ {
 
 			keys = []int{}
-			for _, num := range m.splitNum(set[i]) {
+			for _, num := range m.splitNum(set[i-1]) {
 				key, err := m.lty.cvt.getFlag(num)
 				if err != nil {
 					return keys, err
 				}
 
-				key = m.lty.cvt.shiftLeft(key, i+1)
+				key = m.lty.cvt.shiftLeft(key, i)
 				if len(prev) > 0 {
-					for _, k := range keys {
+					for _, k := range prev {
 						k |= key
 						keys = append(keys, k)
 					}
@@ -287,25 +289,40 @@ func (m *Method) getKeys(bet string, pos ...int) ([]int, error) {
 			prev = keys
 		}
 	} else {
-		set := m.splitNum(bet)
-		for _, i := range pos {
-			if i > m.lty.count || set[i] == placeHolder {
+		set := m.splitBit(bet)
+		h := 0
+
+		for j, i := range pos {
+
+			if len(set) == m.lty.count {
+				h = i - 1
+			} else {
+				h = j
+			}
+
+			if i > m.lty.count || set[h] == placeHolder {
 				return keys, errBetFormat
 			}
 		}
 
-		for _, i := range pos {
+		for j, i := range pos {
+
+			if len(set) == m.lty.count {
+				h = i - 1
+			} else {
+				h = j
+			}
 
 			keys = []int{}
-			for _, num := range m.splitNum(set[i]) {
+			for _, num := range m.splitNum(set[h]) {
 				key, err := m.lty.cvt.getFlag(num)
 				if err != nil {
 					return keys, err
 				}
 
-				key = m.lty.cvt.shiftLeft(key, i+1)
+				key = m.lty.cvt.shiftLeft(key, i)
 				if len(prev) > 0 {
-					for _, k := range keys {
+					for _, k := range prev {
 						k |= key
 						keys = append(keys, k)
 					}
@@ -350,10 +367,11 @@ func (m *Method) CallAllComNum(bet string, p *model.Projects) (error, int) {
 		for i := 1; i <= m.lty.count; i++ {
 			id := p.GetInt64("projectid")
 			if m.checkPunts(id, key) {
-				m.addRecord(key, id, m.getReward(p, 1/int64(math.Pow10(i-1))))
+
+				m.addRecord(key, id, m.getReward(p, 1/math.Pow10(i-1)))
 			}
 
-			key = key & utils.NOT(m.lty.cvt.shiftLeft(mask, i))
+			key = key & int(utils.NOT(int64(m.lty.cvt.shiftLeft(mask, i))))
 		}
 	}
 
@@ -372,6 +390,7 @@ func (m *Method) CallAll120Num(bet string, p *model.Projects) (error, int) {
 	set := m.splitNum(bet)
 	set = m.lty.cvt.formatString(set...)
 	permutation := m.lty.cvt.getPermutation(set, 5)
+
 	for _, s := range permutation {
 		key, err := m.lty.cvt.integer(strings.Join(s, ""))
 		if err != nil {
@@ -444,16 +463,20 @@ func (m *Method) CallAll30Num(bet string, p *model.Projects) (error, int) {
 	for _, singleNum := range singlePart {
 		for _, elem := range com {
 			set := m.lty.cvt.repeatNum([]string{singleNum}, elem[0], 2)
-			set = m.lty.cvt.repeatNum(set, elem[1], 2)
-			for _, s := range set {
-				key, err := m.lty.cvt.integer(strings.Join(s, ""))
-				if err != nil {
-					return err, cancle
-				}
 
-				id := p.GetInt64("projectid")
-				if m.checkPunts(id, key) {
-					m.addRecord(key, id, m.getReward(p, 1))
+			for _, item := range set {
+				data := m.lty.cvt.repeatNum(item, elem[1], 2)
+
+				for _, s := range data {
+					key, err := m.lty.cvt.integer(strings.Join(s, ""))
+					if err != nil {
+						return err, cancle
+					}
+
+					id := p.GetInt64("projectid")
+					if m.checkPunts(id, key) {
+						m.addRecord(key, id, m.getReward(p, 1))
+					}
 				}
 			}
 		}
@@ -589,10 +612,10 @@ func (m *Method) CallFourComNum(bet string, p *model.Projects) (error, int) {
 		for i := 2; i <= m.lty.count; i++ {
 			id := p.GetInt64("projectid")
 			if m.checkPunts(id, key) {
-				m.addRecord(key, id, m.getReward(p, 1/int64(math.Pow10(i-2))))
+				m.addRecord(key, id, m.getReward(p, 1/math.Pow10(i-2)))
 			}
 
-			key = key & utils.NOT(m.lty.cvt.shiftLeft(mask, i))
+			key = key & int(utils.NOT(int64(m.lty.cvt.shiftLeft(mask, i))))
 		}
 	}
 
@@ -610,8 +633,9 @@ func (m *Method) CallFour24Num(bet string, p *model.Projects) (error, int) {
 
 	set := m.splitNum(bet)
 	set = m.lty.cvt.formatString(set...)
-	permutation := m.lty.cvt.getPermutation(set, 5)
+	permutation := m.lty.cvt.getPermutation(set, 4)
 	for _, s := range permutation {
+
 		key, err := m.lty.cvt.integer(strings.Join(s, ""))
 		if err != nil {
 			return err, cancle
@@ -631,80 +655,596 @@ func (m *Method) CallFour24Num(bet string, p *model.Projects) (error, int) {
 *四星组选12
 ***/
 func (m *Method) CallFour12Num(bet string, p *model.Projects) (error, int) {
-	p.Combinations = 360
-	set := strings.Split(p.Number, "|")
-	if len(set) != 2 || set[0] == "*" {
-		return settlement.ExcNumErr
+	set := m.splitBit(bet)
+	if len(set) != 2 {
+		return errBetFormat, cancle
 	}
-	numsStr := strings.Split(set[0], ",")
-	if len(numsStr) < 1 {
-		return settlement.ExcNumErr
-	}
-	for _, numStr := range numsStr {
-		num, err := strconv.Atoi(numStr)
-		if err != nil {
-			return err
-		}
-		tmp := settlement.ArrayDel(t.code[1:], num)
-		if len(tmp) == 2 {
-			if strings.Contains(set[1], fmt.Sprintf("%d", tmp[0])) && strings.Contains(set[1], fmt.Sprintf("%d", tmp[1])) {
-				p.Bets = 1
+
+	singlePart := m.splitNum(set[1])
+	singlePart = m.lty.cvt.formatString(singlePart...)
+	singleSet := m.lty.cvt.getPermutation(singlePart, 2)
+	doubleNums := m.splitNum(set[0])
+	doubleNums = m.lty.cvt.formatString(doubleNums...)
+
+	for _, num := range doubleNums {
+		for _, nums := range singleSet {
+
+			permutation := m.lty.cvt.repeatNum(nums, num, 2)
+			for _, s := range permutation {
+				key, err := m.lty.cvt.integer(strings.Join(s, ""))
+				if err != nil {
+					return err, cancle
+				}
+
+				key = m.lty.cvt.shiftLeft(key, 2)
+				id := p.GetInt64("projectid")
+				if m.checkPunts(id, key) {
+					m.addRecord(key, id, m.getReward(p, 1))
+				}
 			}
 		}
 	}
 
-	return nil
+	return nil, success
 }
 
 /**
 *四星组选6
 ***/
-func (t *tjssc) CallFour6Numerical(p *settlement.Project) error {
-	p.Combinations = 45
-	numsStr := strings.Split(p.Number, ",")
-	if len(numsStr) < 2 {
-		return settlement.ExcNumErr
-	}
-	tmp := t.code[1:]
-	for _, numStr := range numsStr {
-		num, err := strconv.Atoi(numStr)
-		if err != nil {
-			return err
-		}
-		tmp := settlement.ArrayDel(tmp, num)
-		if len(tmp) == 0 {
-			p.Bets = 1
+func (m *Method) CallFour6Num(bet string, p *model.Projects) (error, int) {
+
+	doubleNums := m.splitNum(bet)
+	doubleNums = m.lty.cvt.formatString(doubleNums...)
+	com := m.lty.cvt.getCombination(doubleNums, 2)
+
+	for _, item := range com {
+
+		permutation := m.lty.cvt.repeatNum([]string{item[0], item[0]}, item[1], 2)
+		for _, s := range permutation {
+			key, err := m.lty.cvt.integer(strings.Join(s, ""))
+			if err != nil {
+				return err, cancle
+			}
+
+			key = m.lty.cvt.shiftLeft(key, 2)
+			id := p.GetInt64("projectid")
+			if m.checkPunts(id, key) {
+				m.addRecord(key, id, m.getReward(p, 1))
+			}
 		}
 	}
 
-	return nil
+	return nil, success
 }
 
 /**
 *四星组选4
 ***/
-func (t *tjssc) CallFour4Numerical(p *settlement.Project) error {
-	p.Combinations = 90
-	set := strings.Split(p.Number, "|")
-	if len(set) != 2 || set[0] == "*" {
-		return settlement.ExcNumErr
+func (m *Method) CallFour4Num(bet string, p *model.Projects) (error, int) {
+	set := m.splitBit(bet)
+	if len(set) != 2 {
+		return errBetFormat, cancle
 	}
-	numsStr := strings.Split(set[0], ",")
-	if len(numsStr) < 1 {
-		return settlement.ExcNumErr
-	}
-	for _, numStr := range numsStr {
-		num, err := strconv.Atoi(numStr)
-		if err != nil {
-			return err
-		}
-		tmp := settlement.ArrayDel(t.code[1:], num)
-		if len(tmp) == 1 {
-			if strings.Contains(set[1], fmt.Sprintf("%d", tmp[0])) {
-				p.Bets = 1
+
+	singlePart := m.splitNum(set[1])
+	singlePart = m.lty.cvt.formatString(singlePart...)
+	trebleNums := m.splitNum(set[0])
+	trebleNums = m.lty.cvt.formatString(trebleNums...)
+
+	for _, trebleNum := range trebleNums {
+		for _, singleNum := range singlePart {
+
+			permutation := m.lty.cvt.repeatNum([]string{singleNum}, trebleNum, 3)
+			for _, s := range permutation {
+				key, err := m.lty.cvt.integer(strings.Join(s, ""))
+				if err != nil {
+					return err, cancle
+				}
+
+				key = m.lty.cvt.shiftLeft(key, 2)
+				id := p.GetInt64("projectid")
+				if m.checkPunts(id, key) {
+					m.addRecord(key, id, m.getReward(p, 1))
+				}
 			}
 		}
 	}
 
-	return nil
+	return nil, success
+}
+
+func (m *Method) anyOneNum(bet string, p *model.Projects, n, s int) (error, int) {
+	nums := m.splitNum(bet)
+	nums = m.lty.cvt.formatString(nums...)
+	all := m.lty.cvt.getAllNum()
+	all = m.lty.cvt.formatString(all...)
+	permu := m.lty.cvt.getSelection(all, n-1)
+
+	for _, num := range nums {
+
+		for _, item := range permu {
+
+			set := m.lty.cvt.repeatNum(item, num, 1)
+
+			for _, str := range set {
+				key, err := m.lty.cvt.integer(strings.Join(str, ""))
+				if err != nil {
+					return err, cancle
+				}
+
+				key = m.lty.cvt.shiftLeft(key, s)
+				id := p.GetInt64("projectid")
+				if m.checkPunts(id, key) {
+					m.addRecord(key, id, m.getReward(p, 1))
+				}
+			}
+		}
+	}
+
+	return nil, success
+}
+
+/**
+*前三(不定胆)
+***/
+func (m *Method) CallPrevThreeOneNum(bet string, p *model.Projects) (error, int) {
+	return m.anyOneNum(bet, p, 3, 1)
+}
+
+/**
+*中三(不定胆)
+***/
+func (m *Method) CallMidThreeOneNum(bet string, p *model.Projects) (error, int) {
+	return m.anyOneNum(bet, p, 3, 2)
+}
+
+/**
+*后三(不定胆)
+***/
+func (m *Method) CallLastThreeOneNum(bet string, p *model.Projects) (error, int) {
+	return m.anyOneNum(bet, p, 3, 3)
+}
+
+func (m *Method) anyAnyNum(bet string, p *model.Projects, r, n, s int) (error, int) {
+	if n < r {
+		return fmt.Errorf("args 'n(%d)'' should greater than %d", n, r), cancle
+	}
+
+	if n > m.lty.count {
+		return fmt.Errorf("overflow lottery's max bit"), cancle
+	}
+
+	nums := m.splitNum(bet)
+	permu := m.lty.cvt.getPermutation(nums, r)
+
+	for _, item := range permu {
+		if n > r {
+
+			for i := 0; i < m.lty.count; i++ {
+
+				num := m.lty.cvt.formatInt(m.lty.cvt.start + i)[0]
+				set := m.lty.cvt.repeatNum(item, num, n-r)
+
+				for _, str := range set {
+					key, err := m.lty.cvt.integer(strings.Join(str, ""))
+					if err != nil {
+						return err, cancle
+					}
+
+					key = m.lty.cvt.shiftLeft(key, s)
+					id := p.GetInt64("projectid")
+					if m.checkPunts(id, key) {
+						m.addRecord(key, id, m.getReward(p, 1))
+					}
+				}
+			}
+
+		}
+
+	}
+
+	return nil, success
+}
+
+/**
+*前三二字不定胆
+***/
+func (m *Method) CallPrevThreeTwoNum(bet string, p *model.Projects) (error, int) {
+	return m.anyAnyNum(bet, p, 2, 3, 1)
+}
+
+/**
+*中三二字不定胆
+***/
+func (m *Method) CallMidThreeTwoNum(bet string, p *model.Projects) (error, int) {
+	return m.anyAnyNum(bet, p, 2, 3, 2)
+}
+
+/**
+*后三二字不定胆
+***/
+func (m *Method) CallLastThreeTwoNum(bet string, p *model.Projects) (error, int) {
+	return m.anyAnyNum(bet, p, 2, 3, 3)
+}
+
+func (m *Method) threeComNum(bet string, p *model.Projects, s int) (error, int) {
+	nums := m.splitNum(bet)
+
+	com := m.lty.cvt.getCombination(nums, 2)
+	for _, item := range com {
+		for i := 0; i < 2; i++ {
+			var set [][]string
+			if i == 1 {
+				set = m.lty.cvt.repeatNum([]string{item[i], item[i]}, item[0], 1)
+			} else {
+				set = m.lty.cvt.repeatNum([]string{item[i], item[i]}, item[1], 1)
+			}
+
+			for _, str := range set {
+				key, err := m.lty.cvt.integer(strings.Join(str, ""))
+				if err != nil {
+					return err, cancle
+				}
+
+				key = m.lty.cvt.shiftLeft(key, s)
+				id := p.GetInt64("projectid")
+				if m.checkPunts(id, key) {
+					m.addRecord(key, id, m.getReward(p, 1))
+				}
+			}
+		}
+
+	}
+
+	return nil, success
+}
+
+/***
+*组选3(前三，中三，后三)
+***/
+func (m *Method) CallPrevThreeComNum(bet string, p *model.Projects) (error, int) {
+	return m.threeComNum(bet, p, 1)
+}
+
+func (m *Method) CallMidThreeComNum(bet string, p *model.Projects) (error, int) {
+	return m.threeComNum(bet, p, 2)
+}
+
+func (m *Method) CallLastThreeComNum(bet string, p *model.Projects) (error, int) {
+	return m.threeComNum(bet, p, 3)
+}
+
+func (m *Method) sixComNum(bet string, p *model.Projects, s int) (error, int) {
+	nums := m.splitNum(bet)
+
+	permu := m.lty.cvt.getPermutation(nums, 3)
+	for _, str := range permu {
+		key, err := m.lty.cvt.integer(strings.Join(str, ""))
+		if err != nil {
+			return err, cancle
+		}
+
+		key = m.lty.cvt.shiftLeft(key, s)
+		id := p.GetInt64("projectid")
+		if m.checkPunts(id, key) {
+			m.addRecord(key, id, m.getReward(p, 1))
+		}
+	}
+
+	return nil, success
+}
+
+/***
+*组选6(前三，中三，后三)
+***/
+func (m *Method) CallPrevSixComNum(bet string, p *model.Projects) (error, int) {
+	return m.sixComNum(bet, p, 1)
+}
+
+func (m *Method) CallMidSixComNum(bet string, p *model.Projects) (error, int) {
+	return m.sixComNum(bet, p, 2)
+}
+
+func (m *Method) CallLastSixComNum(bet string, p *model.Projects) (error, int) {
+	return m.sixComNum(bet, p, 3)
+}
+
+func (m *Method) twoComNum(bet string, p *model.Projects, s int) (error, int) {
+	nums := m.splitNum(bet)
+
+	permu := m.lty.cvt.getPermutation(nums, 2)
+	for _, str := range permu {
+		key, err := m.lty.cvt.integer(strings.Join(str, ""))
+		if err != nil {
+			return err, cancle
+		}
+
+		key = m.lty.cvt.shiftLeft(key, s)
+		id := p.GetInt64("projectid")
+		if m.checkPunts(id, key) {
+			m.addRecord(key, id, m.getReward(p, 1))
+		}
+	}
+
+	return nil, success
+}
+
+/***
+*二星组选(前二， 后二)
+***/
+func (m *Method) CallPrevTwoTwoNum(bet string, p *model.Projects) (error, int) {
+	return m.twoComNum(bet, p, 1)
+}
+
+func (m *Method) CallLastTwoTwoNum(bet string, p *model.Projects) (error, int) {
+	return m.twoComNum(bet, p, 3)
+}
+
+func (m *Method) twoSizeOdd(bet string, p *model.Projects, s int) (error, int) {
+	set := m.splitBit(bet)
+	if len(set) != 2 {
+		return errBetFormat, cancle
+	}
+
+	var part1, part2 []string
+	for i, item := range set {
+		for _, num := range m.splitNum(item) {
+			var tmp []string
+
+			switch num {
+			case "0": // 大
+				tmp = m.lty.cvt.size(true)
+			case "1": // 小
+				tmp = m.lty.cvt.size(false)
+			case "2": // 单
+				tmp = m.lty.cvt.odd(true)
+			case "3": // 双
+				tmp = m.lty.cvt.odd(false)
+			}
+
+			if i == 0 {
+				part1 = append(part1, tmp...)
+			} else {
+				part2 = append(part2, tmp...)
+			}
+		}
+	}
+
+	part1 = m.lty.cvt.formatString(part1...)
+	part2 = m.lty.cvt.formatString(part2...)
+
+	for _, num1 := range part1 {
+
+		for _, num2 := range part2 {
+			num2 = num1 + num2
+
+			key, err := m.lty.cvt.integer(num2)
+			if err != nil {
+				return err, cancle
+			}
+
+			key = m.lty.cvt.shiftLeft(key, s)
+			id := p.GetInt64("projectid")
+			if m.checkPunts(id, key) {
+				m.addRecord(key, id, m.getReward(p, 1))
+			}
+		}
+	}
+
+	return nil, success
+}
+
+/***
+*二星大小单双(前二， 后二)
+***/
+func (m *Method) CallPrevTwoSizeOdd(bet string, p *model.Projects) (error, int) {
+	return m.twoSizeOdd(bet, p, 1)
+}
+
+func (m *Method) CallLastTwoSizeOdd(bet string, p *model.Projects) (error, int) {
+	return m.twoSizeOdd(bet, p, 4)
+}
+
+func (m *Method) threeSumCom(bet string, p *model.Projects, s int) (error, int) {
+	nums := m.splitNum(bet)
+
+	for _, num := range nums {
+		v, _ := strconv.Atoi(num)
+		com := m.lty.cvt.getSumCom(v, 3)
+
+		for _, str := range com {
+
+			if str[0] != str[1] && str[0] != str[2] && str[1] != str[2] { // 组六
+				key, err := m.lty.cvt.integer(strings.Join(str, ""))
+				if err != nil {
+					return err, cancle
+				}
+
+				key = m.lty.cvt.shiftLeft(key, s)
+				id := p.GetInt64("projectid")
+				if m.checkPunts(id, key) {
+					m.addRecord(key, id, m.getReward(p, 1))
+				}
+			} else if str[0] != str[1] || str[0] != str[2] || str[1] != str[2] { // 组三
+				key, err := m.lty.cvt.integer(strings.Join(str, ""))
+				if err != nil {
+					return err, cancle
+				}
+
+				key = m.lty.cvt.shiftLeft(key, s)
+				id := p.GetInt64("projectid")
+				if m.checkPunts(id, key) {
+					m.rate /= 2
+					m.addRecord(key, id, m.getReward(p, 1))
+					m.rate *= 2
+				}
+			}
+
+		}
+	}
+
+	return nil, success
+}
+
+/***
+*组三选和
+***/
+func (m *Method) CallPrevThreeSumCom(bet string, p *model.Projects) (error, int) {
+	return m.threeSumCom(bet, p, 1)
+}
+
+func (m *Method) CallMidThreeSumCom(bet string, p *model.Projects) (error, int) {
+	return m.threeSumCom(bet, p, 1)
+}
+
+func (m *Method) CallLastThreeSumCom(bet string, p *model.Projects) (error, int) {
+	return m.threeSumCom(bet, p, 1)
+}
+
+func (m *Method) twoSumCom(bet string, p *model.Projects, s int) (error, int) {
+	nums := m.splitNum(bet)
+
+	for _, num := range nums {
+		v, _ := strconv.Atoi(num)
+		com := m.lty.cvt.getSumCom(v, 2)
+
+		for _, str := range com {
+
+			if str[0] != str[1] {
+				key, err := m.lty.cvt.integer(strings.Join(str, ""))
+				if err != nil {
+					return err, cancle
+				}
+
+				key = m.lty.cvt.shiftLeft(key, s)
+				id := p.GetInt64("projectid")
+				if m.checkPunts(id, key) {
+					m.addRecord(key, id, m.getReward(p, 1))
+				}
+			}
+		}
+	}
+
+	return nil, success
+}
+
+/***
+*二字和数(二字组选和)
+***/
+func (m *Method) CallPrevTwoSumCom(bet string, p *model.Projects) (error, int) {
+	return m.twoSumCom(bet, p, 1)
+}
+
+func (m *Method) CallLastTwoSumCom(bet string, p *model.Projects) (error, int) {
+	return m.twoSumCom(bet, p, 4)
+}
+
+func (m *Method) mixThreeNum(bet string, p *model.Projects, s int) (error, int) {
+	key, err := m.lty.cvt.integer(bet)
+	if err != nil {
+		return err, cancle
+	}
+
+	key = m.lty.cvt.shiftLeft(key, s)
+	id := p.GetInt64("projectid")
+	if m.checkPunts(id, key) {
+		m.addRecord(key, id, m.getReward(p, 1))
+	}
+
+	return nil, success
+}
+
+/***
+*混合组选
+***/
+func (m *Method) CallPrevMixThreeNum(bet string, p *model.Projects) (error, int) {
+	return m.mixThreeNum(bet, p, 1)
+}
+
+func (m *Method) CallMidMixThreeNum(bet string, p *model.Projects) (error, int) {
+	return m.mixThreeNum(bet, p, 2)
+}
+
+func (m *Method) CallLastMixThreeNum(bet string, p *model.Projects) (error, int) {
+	return m.mixThreeNum(bet, p, 3)
+}
+
+/***
+*趣味玩法 一帆风顺
+***/
+func (m *Method) CallEverythingGood(bet string, p *model.Projects) (error, int) {
+	return m.anyOneNum(bet, p, 5, 1)
+}
+
+/***
+*趣味玩法 好事成双
+***/
+func (m *Method) CallPairGood(bet string, p *model.Projects) (error, int) {
+	return m.anySingleRepeatNum(bet, p, 2, 5, 1)
+}
+
+/***
+*趣味玩法 三星报喜
+***/
+func (m *Method) CallThreeGood(bet string, p *model.Projects) (error, int) {
+	return m.anySingleRepeatNum(bet, p, 3, 5, 1)
+}
+
+/***
+*趣味玩法 四季发财
+***/
+func (m *Method) CallFourGood(bet string, p *model.Projects) (error, int) {
+	return m.anySingleRepeatNum(bet, p, 4, 5, 1)
+}
+
+func (m *Method) anySingleRepeatNum(bet string, p *model.Projects, r, n, s int) (error, int) {
+	if n < r {
+		return fmt.Errorf("args 'n(%d)'' should greater than %d", n, r), cancle
+	}
+
+	if n > m.lty.count {
+		return fmt.Errorf("overflow lottery's max bit"), cancle
+	}
+
+	nums := m.splitNum(bet)
+	var permu [][]string
+	for _, num := range nums {
+		var item []string
+
+		for i := 0; i < r; i++ {
+			item = append(item, num)
+		}
+
+		permu = append(permu, item)
+	}
+
+	all := m.lty.cvt.getAllNum()
+
+	for _, item := range permu {
+		if n > r {
+
+			for i := 0; i < n-r; i++ {
+				for _, num := range all {
+					set := m.lty.cvt.repeatNum(item, num, 1)
+
+					for _, str := range set {
+						key, err := m.lty.cvt.integer(strings.Join(str, ""))
+						if err != nil {
+							return err, cancle
+						}
+
+						key = m.lty.cvt.shiftLeft(key, s)
+						id := p.GetInt64("projectid")
+						if m.checkPunts(id, key) {
+							m.addRecord(key, id, m.getReward(p, 1))
+						}
+					}
+				}
+			}
+
+		}
+
+	}
+
+	return nil, success
 }

@@ -35,7 +35,7 @@ func (p *Projects) GetLotteryProjects(lotteryId int64, issue string) *db.Collect
 }
 
 func (p *Projects) GetMode() int64 {
-	switch p.GetString("mode") {
+	switch p.GetString("modes") {
 	case "2":
 		return 10
 	case "3":
