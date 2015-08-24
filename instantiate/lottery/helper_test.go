@@ -41,6 +41,6 @@ func TestRepeatNum(t *testing.T) {
 }
 
 func TestSumCom(t *testing.T) {
-	rel := c.getSumCom(11, 3)
+	rel := c.getSumCom(6, 2)
 	fmt.Println(rel)
 }

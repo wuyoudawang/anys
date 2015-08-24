@@ -1101,6 +1101,42 @@ func (m *Method) CallLastThreeSumCom(bet string, p *model.Projects) (error, int)
 	return m.threeSumCom(bet, p, 1)
 }
 
+func (m *Method) twoSum(bet string, p *model.Projects, s int) (error, int) {
+	nums := m.splitNum(bet)
+
+	for _, num := range nums {
+		v, _ := strconv.Atoi(num)
+		com := m.lty.cvt.getSumCom(v, 2)
+
+		for _, str := range com {
+
+			key, err := m.lty.cvt.integer(strings.Join(str, ""))
+			if err != nil {
+				return err, cancle
+			}
+
+			key = m.lty.cvt.shiftLeft(key, s)
+			id := p.GetInt64("projectid")
+			if m.checkPunts(id, key) {
+				m.addRecord(key, id, m.getReward(p, 1))
+			}
+		}
+	}
+
+	return nil, success
+}
+
+/***
+*二字直选选和
+***/
+func (m *Method) CallPrevTwoSum(bet string, p *model.Projects) (error, int) {
+	return m.twoSum(bet, p, 1)
+}
+
+func (m *Method) CallLastTwoSum(bet string, p *model.Projects) (error, int) {
+	return m.twoSum(bet, p, 2)
+}
+
 func (m *Method) twoSumCom(bet string, p *model.Projects, s int) (error, int) {
 	nums := m.splitNum(bet)
 
@@ -1199,7 +1235,7 @@ func (m *Method) CallFourGood(bet string, p *model.Projects) (error, int) {
 
 func (m *Method) anySingleRepeatNum(bet string, p *model.Projects, r, n, s int) (error, int) {
 	if n < r {
-		return fmt.Errorf("args 'n(%d)'' should greater than %d", n, r), cancle
+		return fmt.Errorf("args 'n(%d)' should greater than %d", n, r), cancle
 	}
 
 	if n > m.lty.count {

@@ -26,6 +26,7 @@ _testmain.go
 *.exe
 *.cover
 *.txt
+*.log
 
 dist
 .temp

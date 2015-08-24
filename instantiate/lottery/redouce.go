@@ -10,14 +10,25 @@ func (l *Lottery) Reduce(i ...int) {
 	nums := l.cvt.getGenerateFn()(l.count, i...)
 	key := 0
 	total := 0.0
+	smallestTotal := 0.0
+	smallestNum := ""
 	for _, num := range nums {
 
 		key, _ = l.cvt.integer(num)
 		total = l.GetTotalReward(key)
 
+		if smallestTotal == 0 || smallestTotal > total {
+			smallestTotal = total
+			smallestNum = num
+		}
+
 		if total <= l.GetMaxReward() {
 			l.addNum(num)
 		}
+	}
+
+	if len(l.nums) == 0 {
+		l.addNum(smallestNum)
 	}
 }
 

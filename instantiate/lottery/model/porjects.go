@@ -19,7 +19,7 @@ func (p *Projects) GetLotteryProjects(lotteryId int64, issue string) *db.Collect
 	collection.JoinLeft(
 		"method as me",
 		"m.methodid=me.methodid",
-		"functionname, newcount, methodname, bei",
+		"customname, functionname, newcount, methodname, bei",
 	)
 	collection.AddFieldToSelect(
 		"projectid, methodid, userid, code, packageid, maxmodel, multiple, "+

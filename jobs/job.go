@@ -1,18 +1,37 @@
 package jobs
 
 import (
+	"fmt"
+	"os"
+	"strings"
 	"time"
+
+	"github.com/astaxie/beego/logs"
+)
+
+const (
+	StatusOk  = 0
+	StatusErr = 1
 )
 
 type Job struct {
 	e      entity
-	key    int
+	name   string
+	args   []string
 	nice   int
+	status int
+
+	stdin  *os.File
+	stderr *os.File
+	stdout *os.File
+	log    logs.LoggerInterface
+	c      chan interface{}
+
+	key    int
 	color  bool
 	left   *Job
 	right  *Job
 	parent *Job
-	C      chan interface{}
 }
 
 func (j *Job) isBlack() bool {
@@ -165,31 +184,146 @@ func (j *Job) Add(root **Job, job *Job) *Job {
 	return j
 }
 
-func (j *Job) Del(c *Container) *Job {
-	if j == *root {
-		c.root = nil
-		c.Free(j)
+func (j *Job) Del(root **Job) *Job {
+
+	var tmp, subst *Job
+
+	if j.right == nil {
+		tmp = j.left
+		subst = j
+	} else if j.left == nil {
+		tmp = j.right
+		subst = j
 	} else {
-		node := j
-		if j.right != nil {
-			temp := node.right.min()
-			temp.parent = node.parent
-			if j == j.parent.left {
-				j.parent.left = temp
-			} else {
-			}
-		}
+		subst = j.min()
 
-		if j.left != nil {
-			node.left.parent = node.parent
-			if node == node.parent.left {
-				node.parent.left = node.left
-			} else {
-				node.parent.right = node.left
-			}
+		if subst.left != nil {
+			tmp = subst.left
+		} else {
+			tmp = subst.right
 		}
-
 	}
+
+	if subst == *root {
+		*root = tmp
+		tmp.black()
+
+		j.left = nil
+		j.right = nil
+		j.parent = nil
+		j.key = 0
+
+		return
+	}
+
+	isRed := subst.isRed()
+
+	if subst == subst.parent.left {
+		subst.parent.left = tmp
+	} else {
+		subst.parent.right = tmp
+	}
+
+	if subst == j {
+		tmp.parent = subst.parent
+	} else {
+
+		if subst.parent == j {
+			tmp.parent = subst
+		} else {
+			tmp.parent = subst.parent
+		}
+
+		subst.left = j.left
+		subst.right = j.right
+		subst.parent = j.parent
+		subst.copyColor(j)
+
+		if j == *root {
+			*root = subst
+		} else {
+			if j == j.parent.left {
+				j.parent.left = subst
+			} else {
+				j.parent.right = subst
+			}
+		}
+
+		if subst.left != nil {
+			subst.left.parent = subst
+		}
+
+		if subst.right != nil {
+			subst.right.parent = subst
+		}
+	}
+
+	j.left = nil
+	j.right = nil
+	j.parent = nil
+	j.key = 0
+
+	if isRed {
+		return
+	}
+
+	for tmp != *root && tmp.isBlack() {
+
+		if tmp == tmp.parent.left {
+			w := tmp.parent.right
+
+			if w.isRed() {
+				w.black()
+				tmp.parent.leftRotate(root)
+				w = tmp.parent.right
+			}
+
+			if w.left.isBlack() && w.right.isBlack() {
+				w.red()
+				tmp = tmp.parent
+			} else {
+				if w.right.isBlack() {
+					w.red()
+					w.rightRotate(root)
+					w = tmp.parent.right
+				}
+
+				w.copyColor(tmp.parent)
+				tmp.parent.black()
+				tmp.parent.leftRotate(root)
+				tmp = *root
+			}
+		} else {
+			w := tmp.parent.left
+
+			if w.isRed() {
+				w.black()
+				tmp.parent.red()
+				tmp.parent.rightRotate(root)
+				w = tmp.parent.left
+			}
+
+			if w.left.isBlack() && w.right.isBlack() {
+				w.red()
+				tmp = tmp.parent
+			} else {
+				if w.left.isBlack() {
+					w.right.black()
+					w.red()
+					w.leftRotate(root)
+					w = tmp.parent.left
+				}
+
+				w.copyColor(tmp.parent)
+				tmp.parent.black()
+				w.left.black()
+				tmp.parent.rightRotate(root)
+				tmp = *root
+			}
+		}
+	}
+
+	tmp.black()
 
 	return j
 }
@@ -205,11 +339,25 @@ func (j *Job) min() *Job {
 
 func (j *Job) Pending() {}
 
-func (j *Job) Pause() {}
-
 func (j *Job) Run() {}
 
 func (j *Job) Exit() {}
+
+func (j *Job) CmdString() string {
+	return fmt.Sprintf("%s %s", job.name, strings.Join(job.args, ", "))
+}
+
+func (j *Job) StatusString() string {
+	var rel string
+
+	if j.status == StatusOk {
+		rel = "OK"
+	} else {
+		rel = "ERROR"
+	}
+
+	return fmt.Sprintf("%s(%d)", rel, j.status)
+}
 
 func key(name string) int {
 	k := 0

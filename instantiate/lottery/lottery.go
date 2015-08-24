@@ -102,13 +102,13 @@ func (l *Lottery) Register(name string, fn methodFn) error {
 
 func (l *Lottery) Dispatch(p *model.Projects) error {
 
-	name := utils.UcWords(p.GetString("functionname"))
+	name := utils.UcWords(p.GetString("customname"))
 	fn, exists := l.methods[name]
 	if !exists {
 		return fmt.Errorf("call a non-existent method '%s'", name)
 	}
 
-	code := strings.Trim(p.GetString("code"), ";")
+	code := strings.Trim(p.GetString("code"), betSeparator)
 	bets := l.splitBet(code)
 
 	for _, bet := range bets {
@@ -163,6 +163,12 @@ func (l *Lottery) GetRecords(key int) (set []*record) {
 	}
 
 	return
+}
+
+func (l *Lottery) Reset() {
+	l.gross = 0
+	l.nums = []string{}
+	l.t.reset()
 }
 
 func (l *Lottery) SendReward() {}

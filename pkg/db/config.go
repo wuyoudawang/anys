@@ -4,7 +4,7 @@ import (
 	// "fmt"
 
 	"anys/config"
-	// "gopkg.in/gorp.v1"
+	"github.com/liuzhiyi/go-db"
 )
 
 const (
@@ -38,6 +38,7 @@ var (
 		Init_conf:   initConf,
 
 		Init_module: initModule,
+		Exit_module: exitModule,
 	}
 )
 
@@ -63,6 +64,12 @@ func initConf(c *config.Config) error {
 
 func initModule(c *config.Config) error {
 	initDB(c)
+
+	return nil
+}
+
+func exitModule(c *config.Config) error {
+	db.F.Destroy()
 
 	return nil
 }

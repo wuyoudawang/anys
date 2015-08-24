@@ -54,3 +54,9 @@ func (t *Table) AddRecord(key int, id int64, amount float64) {
 
 	n.Add(id, amount)
 }
+
+func (t *Table) reset() {
+	for i, _ := range t.container {
+		t.container[i] = make(map[int]*Number)
+	}
+}

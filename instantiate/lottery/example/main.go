@@ -108,7 +108,7 @@ var test_data = []struct {
 
 func main() {
 	var (
-		count = flag.Int("-c", 1, "每种玩法运行多少条记录?")
+		count = flag.Int("c", 1, "每种玩法运行多少条记录?")
 	)
 
 	flag.Parse()
