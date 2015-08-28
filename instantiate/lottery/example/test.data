@@ -29,9 +29,9 @@
 	{"funcname":"PrevTwoSumCom", "code":"7,9", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
 	{"funcname":"PrevTwoTwoNum", "code":"0,1,2,3,4,5,6,7,8,9", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
 	{"funcname":"PrevTwoSizeOdd", "code":"2|1", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
-	{"funcname":"EverythingGood", "code":"1,3", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
+	{"funcname":"EverythingGood", "code":"0,1,2,3,4,5,6,7,8,9", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
 	{"funcname":"PairGood", "code":"1,3,5,7,8", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
-	{"funcname":"ThreeGood", "code":"0,1,2,3,4,5,6,7,8,9", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
+	{"funcname":"ThreeGood", "code":"0", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
 	{"funcname":"FourGood", "code":"3", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
 
 	#福彩

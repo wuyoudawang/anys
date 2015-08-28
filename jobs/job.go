@@ -6,20 +6,37 @@ import (
 	"strings"
 	"time"
 
+	"anys/pkg/utils"
 	"github.com/astaxie/beego/logs"
 )
 
 const (
 	StatusOk  = 0
 	StatusErr = 1
+
+	timeout_infinity = -1
+
+	mask    = 0x0000000f
+	extends = 1 << iota
+	join
+	mulExtends
+	mulJoin
 )
 
 type Job struct {
-	e      entity
-	name   string
-	args   []string
-	nice   int
-	status int
+	e           Entity
+	name        string
+	args        []string
+	nice        int
+	status      int
+	downContact int
+	workerIndex int
+	timeout     time.Duration
+
+	isTimeout bool
+	isActive  bool
+	isRunning bool
+	isExit    bool
 
 	stdin  *os.File
 	stderr *os.File
@@ -27,11 +44,13 @@ type Job struct {
 	log    logs.LoggerInterface
 	c      chan interface{}
 
-	key    int
-	color  bool
-	left   *Job
-	right  *Job
-	parent *Job
+	key     int64
+	color   bool
+	left    *Job
+	right   *Job
+	parent  *Job
+	next    *Job
+	sibling *Job
 }
 
 func (j *Job) isBlack() bool {
@@ -39,7 +58,7 @@ func (j *Job) isBlack() bool {
 }
 
 func (j *Job) isRed() bool {
-	return !j.isBlack()
+	return (j != nil && !j.color)
 }
 
 func (j *Job) black() *Job {
@@ -106,85 +125,101 @@ func (j *Job) rightRotate(root **Job) *Job {
 	return j
 }
 
-func (j *Job) Find(k int) *Job {
+func (j *Job) Find(k int64) *Job {
 	if j == nil {
 		return nil
 	}
 
 	if k < j.key {
 		child := j.left
-		return child.Find(name)
+		return child.Find(k)
 	} else if k > j.key {
 		child := j.right
-		return child.Find(name)
+		return child.Find(k)
 	} else {
 		return j
 	}
 }
 
-func (j *Job) Push() *Job {
+func (j *Job) SetNice(val int) *Job {
+	j.nice = val
 
+	return j
 }
 
-func (j *Job) Add(root **Job, job *Job) *Job {
+func (j *Job) SetTimeout(val time.Duration) *Job {
+	j.timeout = val
+
+	return j
+}
+
+func (j *Job) GetTimeout() time.Duration {
+	if j.timeout == 0 {
+		j.timeout = 5 * time.Second
+	}
+
+	return j.timeout
+}
+
+func (j *Job) Add(root **Job) *Job {
 	parent := *root
 	node := root
 	for *node != nil {
 		parent = *node
-		if job.key < parent.key {
-			node = parent.left
-		} else if job.key > parent.key {
-			node = parent.right
+		if j.key < parent.key {
+			*node = parent.left
+		} else if j.key > parent.key {
+			*node = parent.right
 		} else {
 			return j
 		}
 	}
-	*node = job
-	job.parent = parent
+	*node = j
+	j.parent = parent
 
-	for *node != root && parent.isBlack() {
+	for *node != *root && parent.isBlack() {
 		if parent == parent.parent.left {
 			if parent.parent.right.isRed() {
 				parent.parent.red()
 				parent.parent.right.black()
 				parent.black()
 				*node = parent.parent
-				parent = *node.parent
+				parent = (*node).parent
 			} else {
 				if *node == parent.right {
-					*node.parent.leftRotate(root)
-					*node = *node.parent
+					(*node).parent.leftRotate(root)
+					*node = (*node).parent
 				}
 
-				*node.parent.black()
-				*node.parent.parent.red()
-				*node.parent.parent.rightRotate(root)
+				(*node).parent.black()
+				(*node).parent.parent.red()
+				(*node).parent.parent.rightRotate(root)
 			}
 		} else {
 			if parent.parent.left.isRed() {
 				parent.parent.red()
 				parent.parent.right.black()
 				parent.black()
-				*node = parent.parent
-				parent = *node.parent
+				(*node) = parent.parent
+				parent = (*node).parent
 			} else {
 				if *node == parent.right {
-					*node.parent.leftRotate(root)
-					*node = *node.parent
+					(*node).parent.leftRotate(root)
+					*node = (*node).parent
 				}
 
-				*node.parent.black()
-				*node.parent.parent.red()
-				*node.parent.rightRotate(root)
+				(*node).parent.black()
+				(*node).parent.parent.red()
+				(*node).parent.rightRotate(root)
 			}
 		}
 	}
 
-	root.black()
+	(*root).black()
 	return j
 }
 
-func (j *Job) Del(root **Job) *Job {
+func (j *Job) Del(root **Job) {
 
 	var tmp, subst *Job
 
@@ -325,7 +360,6 @@ func (j *Job) Del(root **Job) *Job {
 
 	tmp.black()
 
-	return j
 }
 
 func (j *Job) min() *Job {
@@ -337,6 +371,13 @@ func (j *Job) min() *Job {
 	return temp
 }
 
+func (j *Job) Extends(job *Job) {
+	job.log = j.log
+	job.stdin = j.stdout
+
+	j.next = job
+}
+
 func (j *Job) Pending() {}
 
 func (j *Job) Run() {}
@@ -344,7 +385,7 @@ func (j *Job) Run() {}
 func (j *Job) Exit() {}
 
 func (j *Job) CmdString() string {
-	return fmt.Sprintf("%s %s", job.name, strings.Join(job.args, ", "))
+	return fmt.Sprintf("%s %s", j.name, strings.Join(j.args, ", "))
 }
 
 func (j *Job) StatusString() string {
@@ -359,30 +400,77 @@ func (j *Job) StatusString() string {
 	return fmt.Sprintf("%s(%d)", rel, j.status)
 }
 
-func key(name string) int {
-	k := 0
-	for i, v := range name {
-		k += i * int(v)
-	}
-
-	return k
-}
-
 type Container struct {
-	root     *Job
-	free     []*Job
-	post     minHeap
-	timers   minHeap
-	postSize int
-	postLen  int
+	root   *Job
+	free   *Job
+	post   *minHeap
+	timers *minHeap
 }
 
-func (c *Container) Pending(job *Job) *Container {
-	c.post.minHeapPush(job)
+func NewContainer() *Container {
+	c := new(Container)
+	post := newMinHeap(
+		MAXGOROUTINE,
+		func(a, b interface{}) int {
+			jobA := a.(*Job)
+			jobB := b.(*Job)
+
+			return jobA.nice - jobB.nice
+		},
+	)
+
+	timers := newMinHeap(MAXGOROUTINE*2,
+		func(a, b interface{}) int {
+			jobA := a.(*Job)
+			jobB := b.(*Job)
+
+			return int(jobA.timeout - jobB.timeout)
+		},
+	)
+
+	c.post = post
+	c.timers = timers
 
 	return c
 }
 
-func (c *Container) Run() {
+func (c *Container) Pending(job *Job) *Container {
+	if job.GetTimeout() != timeout_infinity {
+		c.timers.minHeapPush(job)
+	}
 
+	job.Add(&c.root)
+	job.isActive = false
+	job.isRunning = false
+	job.isExit = false
+
+	return c
+}
+
+func (c *Container) Find(name string) *Job {
+	key := utils.Key(name)
+	return c.root.Find(key)
+}
+
+func (c *Container) Active(job *Job) *Container {
+
+	c.post.minHeapPush(job)
+	job.isActive = true
+
+	return c
+}
+
+func (c *Container) ProcessExpireTimer(now time.Duration) {
+	for c.timers.minHeapTop() != nil {
+
+		iteam := c.timers.minHeapTop()
+		job := item.(*Job)
+
+		if job.timeout > now {
+			break
+		}
+
+		job.isTimeout = true
+		c.timers.minHeapPop()
+	}
 }

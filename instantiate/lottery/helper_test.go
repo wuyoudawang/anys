@@ -24,7 +24,7 @@ func TestPermutation(t *testing.T) {
 }
 
 func TestCombination(t *testing.T) {
-	com := c.getCombination([]string{"1", "2", "3", "4", "5", "6", "8"}, 5)
+	com := c.getCombination([]string{"1", "2", "3", "4", "5", "6", "8"}, 4)
 	fmt.Println(len(com), com)
 }
 
@@ -41,6 +41,12 @@ func TestRepeatNum(t *testing.T) {
 }
 
 func TestSumCom(t *testing.T) {
-	rel := c.getSumCom(6, 2)
+	rel := c.getSumCom(6, 4)
 	fmt.Println(rel)
+}
+
+func TestSelection(t *testing.T) {
+	set := []string{"1", "2"}
+	rel := c.getSelection(set, 4)
+	fmt.Println("selection", rel)
 }

@@ -5,14 +5,14 @@ import (
 )
 
 type Entity interface {
-	Init(g *config.G) error       // initialize a job
-	Run(g *config.G) (error, int) // run a job
-	Exit(g *config.G) error       // exit a job
-	Exception(g *config.G) error  // a job in running produce a fatal error
+	Init(g *config.Config) error       // initialize a job
+	Run(g *config.Config) (error, int) // run a job
+	Exit(g *config.Config) error       // exit a job
+	Exception(g *config.Config) error  // a job in running produce a fatal error
 }
 
 // errors level
-var (
+const (
 	NoErrLvl = iota
 	NoteErrLvl
 	WarnErrLvl
@@ -22,18 +22,18 @@ var (
 type Default struct {
 }
 
-func (d *Default) Init(g *config.G) error {
+func (d *Default) Init(g *config.Config) error {
 	return nil
 }
 
-func (d *Default) Run(g *config.G) (error, int) {
+func (d *Default) Run(g *config.Config) (error, int) {
 	return nil, NoErrLvl
 }
 
-func (d *Default) Exit(g *config.G) error {
+func (d *Default) Exit(g *config.Config) error {
 	return nil
 }
 
-func (d *Default) Exception(g *config.G) error {
+func (d *Default) Exception(g *config.Config) error {
 	return nil
 }

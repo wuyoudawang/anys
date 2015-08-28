@@ -14,26 +14,34 @@ import (
 func main() {
 	c := &config.Config{}
 	initMaster(c)
+	go processLottery(c, "tcaifive")
+	processLottery(c, "tcaithird")
 
+	exitMaster(c)
+	fmt.Println("finish")
+}
+
+func processLottery(c *config.Config, name string) {
 	issueinfo := model.NewIssueinfo()
 	p := model.NewProjects()
+
+	lcf := lottery.GetConf(c)
+	lty, err := lcf.GetLottery(name)
+	if err != nil {
+		panic(err.Error())
+	}
+
 	ticker := time.NewTicker(60 * time.Second)
 
 	for range ticker.C {
 
-		issue := issueinfo.GetCurrentIssue(1)
+		issue := issueinfo.GetCurrentIssue(lty.GetId())
 		if issue == nil {
 			continue
 		}
 
-		collection := p.GetLotteryProjects(1, issue.GetString("issue"))
+		collection := p.GetLotteryProjects(lty.GetId(), issue.GetString("issue"))
 		collection.Load()
-
-		lcf := lottery.GetConf(c)
-		lty, err := lcf.GetLottery("ssj")
-		if err != nil {
-			panic(err.Error())
-		}
 
 		for _, item := range collection.GetItems() {
 			p := &model.Projects{Item: *item}
@@ -47,6 +55,16 @@ func main() {
 		key, _ := lty.GenerateKey(winNum)
 		fmt.Println(lty.GetTotalReward(key))
 		fmt.Println(lty.GetGross())
+		// for _, record := range lty.GetRecords(key) {
+		// 	fmt.Println(record)
+		// }
+
+		// key, _ = lty.GenerateKey("30030")
+		// fmt.Println(lty.GetTotalReward(key))
+		// for _, record := range lty.GetRecords(key) {
+		// 	fmt.Println(record)
+		// }
+
 		issue.SetData("code", winNum)
 		issue.SetData("statuscode", 2)
 		issue.SetData("statusfetch", 2)
@@ -58,9 +76,6 @@ func main() {
 
 		lty.Reset()
 	}
-
-	exitMaster(c)
-	fmt.Println("finish")
 }
 
 func initMaster(c *config.Config) {
@@ -89,5 +104,9 @@ func exitMaster(c *config.Config) {
 func loadCoreMudule(c *config.Config) {
 	c.LoadModule(db.ModuleName)
 	c.LoadModule(log.ModuleName)
-	c.LoadModule(lottery.ModuleName)
+	c.LoadModule(
+		lottery.ModuleName,
+		db.ModuleName,
+		log.ModuleName,
+	)
 }

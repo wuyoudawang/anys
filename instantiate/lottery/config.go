@@ -5,7 +5,9 @@ import (
 
 	"anys/config"
 	"anys/instantiate/lottery/model"
+	"anys/log"
 	"anys/pkg/utils"
+	"github.com/liuzhiyi/go-db"
 )
 
 const (
@@ -28,6 +30,7 @@ var (
 	commands = []*config.Command{
 		{config.BLOCK, "lottery", lotteryBlock},
 		{config.MORE1, "hedging", setHedging},
+		{config.MORE1, "property", setProperty},
 		{config.MORE1, "count", setCount},
 		{config.BLOCK, "entity", entityBlock},
 		{config.MORE1, "method", createMethod},
@@ -38,6 +41,8 @@ var (
 
 		Create_conf: createConf,
 		Init_conf:   initConf,
+
+		Init_module: initModule,
 	}
 )
 
@@ -53,6 +58,24 @@ func createConf(c *config.Config) {
 func initConf(c *config.Config) error {
 	conf := GetConf(c)
 	conf.lotteries = make(map[string]*Lottery)
+
+	return nil
+}
+
+func initModule(c *config.Config) error {
+	conf := GetConf(c)
+	ltyObj := model.NewLottery()
+
+	for _, lty := range conf.lotteries {
+		itemObj := ltyObj.GetLotteryIdByName(lty.name)
+
+		if itemObj == nil {
+			log.Warning("invaild lottery '%s'", lty.name)
+		}
+
+		db.F.RegisterItem(itemObj)
+		lty.setId(itemObj.GetInt64("lotteryid"))
+	}
 
 	return nil
 }
@@ -82,7 +105,9 @@ func entityBlock(c *config.Config) error {
 		return err
 	}
 
-	conf.lotteries[name] = NewLottery(a, b, d)
+	lottery := NewLottery(a, b, d)
+	lottery.name = name
+	conf.lotteries[name] = lottery
 	conf.currName = name
 	return nil
 }
@@ -95,6 +120,17 @@ func setHedging(c *config.Config) error {
 
 	conf := GetConf(c)
 	conf.lotteries[conf.currName].hedging, err = c.Float64(args[1])
+	return err
+}
+
+func setProperty(c *config.Config) error {
+	args, err := c.CheckArgs(2)
+	if err != nil {
+		return err
+	}
+
+	conf := GetConf(c)
+	conf.lotteries[conf.currName].cvt.property(args[1])
 	return err
 }
 

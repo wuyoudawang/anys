@@ -17,7 +17,9 @@ func NewIssueinfo() *Issueinfo {
 }
 
 func (i *Issueinfo) GetCurrentIssue(lotteryId int64) *Issueinfo {
-	current := time.Now().Format("2006-01-02 15:04:05")
+	now := time.Now()
+	current := now.Format("2006-01-02 15:04:05")
+	before := now.Add(-20 * time.Minute).Format("2006-01-02 15:04:05")
 
 	collection := i.GetCollection()
 	collection.AddFieldToSelect(
@@ -29,6 +31,7 @@ func (i *Issueinfo) GetCurrentIssue(lotteryId int64) *Issueinfo {
 	collection.AddFieldToFilter("m.statuscode", "eq", 0)
 	collection.AddFieldToFilter("m.statuscheckbonus", "eq", 0)
 	collection.AddFieldToFilter("m.saleend", "lt", current)
+	collection.AddFieldToFilter("m.saleend", "gt", before)
 	collection.AddFieldToFilter("m.lotteryid", "eq", lotteryId)
 	collection.AddOrder("saleend desc")
 	collection.SetPageSize(1)
@@ -57,10 +60,10 @@ func (i *Issueinfo) FinishDraw(code string) {
 
 func (i *Issueinfo) FinishSendReward() {
 	i.SetData("statusbonus", 2)
-	i.SetData("statusdeduct", 2)
 	i.SetData("statususerpoint", 2)
 }
 
 func (i *Issueinfo) FinishTask() {
+	i.SetData("statusdeduct", 2)
 	i.SetData("statustasktoproject", 2)
 }

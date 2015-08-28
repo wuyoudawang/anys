@@ -14,6 +14,8 @@ import (
 type methodFn func(string, *model.Projects) (error, int)
 
 type Lottery struct {
+	id        int64
+	name      string
 	gross     float64
 	hedging   float64
 	maxReward float64
@@ -63,6 +65,22 @@ func (l *Lottery) NewNumber(str string) (*Number, error) {
 	return n, nil
 }
 
+func (l *Lottery) setId(id int64) {
+	l.id = id
+}
+
+func (l *Lottery) getLast(n int) int {
+	return l.count - n + 1
+}
+
+func (l *Lottery) getMid(n int) int {
+	return (l.count-n)/2 + 1
+}
+
+func (l *Lottery) GetId() int64 {
+	return l.id
+}
+
 func (l *Lottery) addGross(v float64) {
 	l.gross += v
 }
@@ -88,6 +106,10 @@ func (l *Lottery) GenerateKey(num string) (int, error) {
 
 func (l *Lottery) addNum(num string) {
 	l.nums = append(l.nums, num)
+}
+
+func (l *Lottery) addNums(nums ...string) {
+	l.nums = append(l.nums, nums...)
 }
 
 func (l *Lottery) Register(name string, fn methodFn) error {

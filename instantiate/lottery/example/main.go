@@ -16,6 +16,7 @@ import (
 	"anys/instantiate/lottery/model"
 	"anys/log"
 	"anys/pkg/db"
+	"anys/pkg/utils"
 	"time"
 )
 
@@ -108,7 +109,8 @@ var test_data = []struct {
 
 func main() {
 	var (
-		count = flag.Int("c", 1, "每种玩法运行多少条记录?")
+		count      = flag.Int("c", 1, "每种玩法运行多少条记录?")
+		methodName = flag.String("m", "", "特定执行某种方法")
 	)
 
 	flag.Parse()
@@ -131,12 +133,17 @@ func main() {
 
 			p := model.NewProjects()
 			p.SetData("projectid", id)
-			p.SetData("functionname", item["funcname"])
+			p.SetData("customname", item["funcname"])
 			p.SetData("code", item["code"])
 			p.SetData("modes", item["modes"])
 			p.SetData("multiple", item["multiple"])
 			p.SetData("omodel", item["omodel"])
 			p.SetData("totalprice", item["totalprice"])
+
+			if *methodName != "" && utils.UcWords(p.GetString("customname")) != utils.UcWords(*methodName) {
+				continue
+			}
+
 			err = lty.Dispatch(p)
 			if err != nil {
 				fmt.Println(err)

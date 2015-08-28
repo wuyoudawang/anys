@@ -54,12 +54,12 @@ func (c *Config) SortModules() error {
 	ms := make([]*Module, len(c.modules))
 	copy(ms, c.modules)
 
-	tmp := []*Module{}
 	last := 0
 	index := 0
 
 	for ms[0] != nil {
 
+		tmp := []*Module{}
 		for i := 0; i < len(ms) && ms[i] != nil; i++ {
 
 			if len(ms[i].depends) == 0 ||

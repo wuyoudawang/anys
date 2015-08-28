@@ -317,8 +317,12 @@ func (c *convert) getSelection(set []string, n int) (rel [][]string) {
 			if len(rel) > 0 {
 
 				for _, item := range rel {
+
 					item = append(item, num)
-					tmp = append(tmp, item)
+
+					newItem := make([]string, len(item))
+					copy(newItem, item)
+					tmp = append(tmp, newItem)
 				}
 			} else {
 				tmp = append(tmp, []string{num})
