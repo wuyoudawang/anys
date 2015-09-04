@@ -6,8 +6,10 @@ package utils
 
 import (
 	"bytes"
+	"encoding/gob"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -69,4 +71,91 @@ func ContactArrString(a, b []string) []string {
 	dst = append(dst, b...)
 
 	return dst
+}
+
+func SelectK(arr []int, k int) int {
+	if k > len(arr) {
+		return -1
+	}
+
+	tmp := arr[0]
+	j := 0
+	pos := 0
+	for i := 1; i < len(arr); i++ {
+		if arr[i] < tmp {
+			arr[j] = arr[pos]
+			arr[pos] = arr[i]
+			j = i
+			pos++
+		}
+	}
+	arr[j] = arr[pos]
+	arr[pos] = tmp
+
+	if pos == k-1 {
+		return arr[pos]
+	} else if pos > k-1 {
+		return SelectK(arr[0:pos], k)
+	} else {
+		return SelectK(arr[pos+1:], k-pos-1)
+	}
+}
+
+func Serialize(value interface{}) ([]byte, error) {
+	if bytes, ok := value.([]byte); ok {
+		return bytes, nil
+	}
+
+	switch v := reflect.ValueOf(value); v.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return []byte(strconv.FormatInt(v.Int(), 10)), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return []byte(strconv.FormatUint(v.Uint(), 10)), nil
+	}
+
+	var b bytes.Buffer
+	encoder := gob.NewEncoder(&b)
+	if err := encoder.Encode(value); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+func Unserialize(byt []byte, ptr interface{}) (err error) {
+	if bytes, ok := ptr.(*[]byte); ok {
+		*bytes = byt
+		return
+	}
+
+	if v := reflect.ValueOf(ptr); v.Kind() == reflect.Ptr {
+		switch p := v.Elem(); p.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			var i int64
+			i, err = strconv.ParseInt(string(byt), 10, 64)
+			if err != nil {
+
+			} else {
+				p.SetInt(i)
+			}
+			return
+
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			var i uint64
+			i, err = strconv.ParseUint(string(byt), 10, 64)
+			if err != nil {
+
+			} else {
+				p.SetUint(i)
+			}
+			return
+		}
+	}
+
+	b := bytes.NewBuffer(byt)
+	decoder := gob.NewDecoder(b)
+	if err = decoder.Decode(ptr); err != nil {
+
+		return
+	}
+	return
 }

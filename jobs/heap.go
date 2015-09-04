@@ -1,10 +1,11 @@
 package jobs
 
 type minHeap struct {
-	h       []interface{}
-	size    int
-	maxLen  int
-	compare func(a, b interface{}) int
+	h        []interface{}
+	size     int
+	maxLen   int
+	compare  func(a, b interface{}) int
+	setIndex func(elem interface{}, i int)
 }
 
 func newMinHeap(length int, compare func(a, b interface{}) int) *minHeap {
@@ -49,12 +50,32 @@ func (m *minHeap) minHeapPush(elem interface{}) {
 	m.size++
 }
 
+func (m *minHeap) empty() bool {
+	return m.size == 0
+}
+
 func (m *minHeap) minHeapPop() interface{} {
+	if m.empty() {
+		return nil
+	}
+
 	elem := m.minHeapTop()
 	m.h[0] = m.h[m.size-1]
 	m.size--
 	m.minHeapifyDown(0)
 	return elem
+}
+
+func (m *minHeap) minHeapRemove(i int) interface{} {
+	n := m.size
+	if i != m.size {
+		m.h[i] = m.h[m.size-1]
+		m.size--
+		m.minHeapifyDown(i)
+		m.minHeapifyUp(i)
+	}
+
+	return m.h[n-1]
 }
 
 func (m *minHeap) minHeapifyUp(i int) {
@@ -63,10 +84,7 @@ func (m *minHeap) minHeapifyUp(i int) {
 	}
 
 	if m.compare(m.h[m.minHeapParent(i)], m.h[i]) > 0 {
-
-		tmp := m.h[i]
-		m.h[i] = m.h[m.minHeapParent(i)]
-		m.h[m.minHeapParent(i)] = tmp
+		m.swap(i, m.minHeapParent(i))
 		m.minHeapifyUp(m.minHeapParent(i))
 	}
 }
@@ -86,10 +104,21 @@ func (m *minHeap) minHeapifyDown(i int) {
 	}
 
 	if smallest != i {
-
-		tmp := m.h[smallest]
-		m.h[smallest] = m.h[i]
-		m.h[i] = tmp
+		m.swap(smallest, i)
 		m.minHeapifyDown(smallest)
+	}
+}
+
+func (m *minHeap) swap(i, j int) {
+	tmp := m.h[i]
+
+	m.h[i] = m.h[j]
+	if m.setIndex != nil {
+		m.setIndex(m.h[j], i)
+	}
+
+	m.h[j] = tmp
+	if m.setIndex != nil {
+		m.setIndex(tmp, j)
 	}
 }

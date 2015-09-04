@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"anys/pkg/utils"
@@ -14,7 +15,7 @@ const (
 	StatusOk  = 0
 	StatusErr = 1
 
-	timeout_infinity = -1
+	TIME_INFINITY = -1
 
 	mask    = 0x0000000f
 	extends = 1 << iota
@@ -25,24 +26,26 @@ const (
 
 type Job struct {
 	e           Entity
+	eng         *Engine
 	name        string
 	args        []string
 	nice        int
 	status      int
 	downContact int
 	workerIndex int
-	timeout     time.Duration
+	heapIndex   int
+	interval    time.Duration
+	timeout     int64
 
 	isTimeout bool
 	isActive  bool
 	isRunning bool
 	isExit    bool
 
-	stdin  *os.File
-	stderr *os.File
-	stdout *os.File
+	stdin  *Input
+	stderr *Output
+	stdout *Output
 	log    logs.LoggerInterface
-	c      chan interface{}
 
 	key     int64
 	color   bool
@@ -51,6 +54,31 @@ type Job struct {
 	parent  *Job
 	next    *Job
 	sibling *Job
+}
+
+func NewJob(entity Entity, name string) *Job {
+	return &Job{
+		e:           entity,
+		name:        name,
+		stdin:       NewInput(os.Stdin),
+		stdout:      NewOutput(os.Stdout),
+		stderr:      NewOutput(os.Stderr),
+		key:         utils.Key(name),
+		heapIndex:   -1,
+		workerIndex: -1,
+	}
+}
+
+func (j *Job) SetLog(log logs.LoggerInterface) {
+	j.log = log
+}
+
+func (j *Job) setEngine(eng *Engine) {
+	j.eng = eng
+}
+
+func (j *Job) GetEngine() *Engine {
+	return j.eng
 }
 
 func (j *Job) isBlack() bool {
@@ -148,17 +176,19 @@ func (j *Job) SetNice(val int) *Job {
 }
 
 func (j *Job) SetTimeout(val time.Duration) *Job {
-	j.timeout = val
+	j.interval = val
 
 	return j
 }
 
-func (j *Job) GetTimeout() time.Duration {
-	if j.timeout == 0 {
-		j.timeout = 5 * time.Second
+func (j *Job) GetTimeout() int64 {
+
+	if j.interval == 0 {
+
+		j.interval = 5 * time.Second
 	}
 
-	return j.timeout
+	return time.Now().Add(j.interval).UnixNano()
 }
 
 func (j *Job) Add(root **Job) *Job {
@@ -373,16 +403,34 @@ func (j *Job) min() *Job {
 
 func (j *Job) Extends(job *Job) {
 	job.log = j.log
-	job.stdin = j.stdout
+	job.stdin.Redirect(j.stdout)
 
 	j.next = job
 }
 
-func (j *Job) Pending() {}
+func (j *Job) Pending() error {
+	if j.eng != nil {
+		return fmt.Errorf("job '%s' using an empty enginge", j.name)
+	}
 
-func (j *Job) Run() {}
+	return j.eng.Pending(j)
+}
 
-func (j *Job) Exit() {}
+func (j *Job) init() (error, int) {
+	return j.e.Init(j)
+}
+
+func (j *Job) run() (error, int) {
+	return j.e.Run(j)
+}
+
+func (j *Job) exception(level int) {
+	j.e.Exception(j, level)
+}
+
+func (j *Job) exit() (error, int) {
+	return j.e.Exit(j)
+}
 
 func (j *Job) CmdString() string {
 	return fmt.Sprintf("%s %s", j.name, strings.Join(j.args, ", "))
@@ -401,15 +449,15 @@ func (j *Job) StatusString() string {
 }
 
 type Container struct {
-	root   *Job
-	free   *Job
-	post   *minHeap
-	timers *minHeap
+	root     *Job
+	posted   *minHeap
+	timers   *minHeap
+	timersMt sync.Mutex
 }
 
 func NewContainer() *Container {
 	c := new(Container)
-	post := newMinHeap(
+	posted := newMinHeap(
 		MAXGOROUTINE,
 		func(a, b interface{}) int {
 			jobA := a.(*Job)
@@ -428,16 +476,13 @@ func NewContainer() *Container {
 		},
 	)
 
-	c.post = post
+	c.posted = posted
 	c.timers = timers
 
 	return c
 }
 
-func (c *Container) Pending(job *Job) *Container {
-	if job.GetTimeout() != timeout_infinity {
-		c.timers.minHeapPush(job)
-	}
+func (c *Container) Register(job *Job) *Container {
 
 	job.Add(&c.root)
 	job.isActive = false
@@ -447,23 +492,38 @@ func (c *Container) Pending(job *Job) *Container {
 	return c
 }
 
+func (c *Container) Pending(job *Job) error {
+	c.timersMt.Lock()
+	defer c.timersMt.Unlock()
+
+	timeout := job.GetTimeout()
+	if timeout != TIME_INFINITY {
+		job.timeout = timeout
+		c.timers.minHeapPush(job)
+		return nil
+	}
+
+	return fmt.Errorf("timeout must is positive")
+}
+
 func (c *Container) Find(name string) *Job {
 	key := utils.Key(name)
 	return c.root.Find(key)
 }
 
-func (c *Container) Active(job *Job) *Container {
-
-	c.post.minHeapPush(job)
-	job.isActive = true
+func (c *Container) Post(job *Job) *Container {
+	c.posted.minHeapPush(job)
 
 	return c
 }
 
-func (c *Container) ProcessExpireTimer(now time.Duration) {
-	for c.timers.minHeapTop() != nil {
+func (c *Container) ProcessExpireTimer(now int64) {
+	c.timersMt.Lock()
+	defer c.timersMt.Unlock()
 
-		iteam := c.timers.minHeapTop()
+	for !c.timers.empty() {
+
+		item := c.timers.minHeapTop()
 		job := item.(*Job)
 
 		if job.timeout > now {
@@ -472,5 +532,30 @@ func (c *Container) ProcessExpireTimer(now time.Duration) {
 
 		job.isTimeout = true
 		c.timers.minHeapPop()
+
+		job.eng.AddJob(job)
 	}
+}
+
+func (c *Container) MinTimeout() int64 {
+	c.timersMt.Lock()
+	defer c.timersMt.Unlock()
+
+	if !c.timers.empty() {
+		elem := c.timers.minHeapTop()
+		job := elem.(*Job)
+		return job.timeout
+	}
+
+	return TIME_INFINITY
+}
+
+func (c *Container) Active(job *Job) {
+	c.timersMt.Lock()
+	defer c.timersMt.Unlock()
+
+	if job.heapIndex >= 0 {
+		c.timers.minHeapRemove(job.heapIndex)
+	}
+	job.eng.AddJob(job)
 }

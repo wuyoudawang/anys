@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"anys/instantiate/lottery/model"
+	"anys/log"
 	"anys/pkg/utils"
 )
 
@@ -34,6 +35,7 @@ func NewMethod(l *Lottery, conf string) (*Method, error) {
 	m := make(map[string]interface{})
 	err := json.Unmarshal([]byte(conf), &m)
 	if err != nil {
+		log.Info("config of method '%s' has an error '%s'", conf, err.Error())
 		return nil, err
 	}
 
@@ -186,6 +188,10 @@ func (m *Method) CallLastTwoNum(bet string, p *model.Projects) (error, int) {
 
 func (m *Method) threeNum(bet string, p *model.Projects, frist, second, third int) (error, int) {
 	set := m.splitBit(bet)
+	if len(set) < third {
+		return errBetFormat, cancle
+	}
+
 	one := set[frist-1]
 	two := set[second-1]
 	three := set[third-1]
@@ -833,8 +839,10 @@ func (m *Method) anyAnyNum(bet string, p *model.Projects, r, n, s int) (error, i
 	}
 
 	nums := m.splitNum(bet)
+	nums = m.lty.cvt.formatString(nums...)
 	permu := m.lty.cvt.getPermutation(nums, r)
 	all := m.lty.cvt.getAllNum()
+	all = m.lty.cvt.formatString(all...)
 
 	// for _, item := range permu {
 
@@ -924,6 +932,7 @@ func (m *Method) CallLastThreeTwoNum(bet string, p *model.Projects) (error, int)
 
 func (m *Method) threeComNum(bet string, p *model.Projects, s int) (error, int) {
 	nums := m.splitNum(bet)
+	nums = m.lty.cvt.formatString(nums...)
 
 	com := m.lty.cvt.getCombination(nums, 2)
 	for _, item := range com {
@@ -971,6 +980,7 @@ func (m *Method) CallLastThreeComNum(bet string, p *model.Projects) (error, int)
 
 func (m *Method) sixComNum(bet string, p *model.Projects, s int) (error, int) {
 	nums := m.splitNum(bet)
+	nums = m.lty.cvt.formatString(nums...)
 
 	permu := m.lty.cvt.getPermutation(nums, 3)
 	for _, str := range permu {
@@ -1006,6 +1016,7 @@ func (m *Method) CallLastSixComNum(bet string, p *model.Projects) (error, int) {
 
 func (m *Method) twoComNum(bet string, p *model.Projects, s int) (error, int) {
 	nums := m.splitNum(bet)
+	nums = m.lty.cvt.formatString(nums...)
 
 	permu := m.lty.cvt.getPermutation(nums, 2)
 	for _, str := range permu {
@@ -1403,7 +1414,7 @@ func (m *Method) anySingleRepeatNum(bet string, p *model.Projects, r, n, s int) 
 
 // 任选
 func (m *Method) CallAnyOneNum(bet string, p *model.Projects) (error, int) {
-	return m.anyAnyNum(bet, p, 1, m.lty.count, 1)
+	return m.anyOneNum(bet, p, m.lty.count, 1)
 }
 
 func (m *Method) CallAnyTwoNum(bet string, p *model.Projects) (error, int) {
@@ -1507,25 +1518,26 @@ func (m *Method) CallMidNum(bet string, p *model.Projects) (error, int) {
 				bigNums = append(bigNums, num)
 			}
 
-			if len(litteNums) != half || len(bigNums) != half {
-				return errBetFormat, cancle
+		}
+
+		if len(litteNums) < half || len(bigNums) < half {
+			return errBetFormat, cancle
+		}
+
+		copy(com[0:half], litteNums)
+		com[half] = item
+		copy(com[half+1:], bigNums)
+
+		perm := m.lty.cvt.getPermutation(com, m.lty.count)
+		for _, str := range perm {
+			key, err := m.lty.cvt.integer(strings.Join(str, ""))
+			if err != nil {
+				return err, cancle
 			}
 
-			copy(com[0:half], litteNums)
-			com[half] = item
-			copy(com[half+1:], bigNums)
-
-			perm := m.lty.cvt.getPermutation(com, m.lty.count)
-			for _, str := range perm {
-				key, err := m.lty.cvt.integer(strings.Join(str, ""))
-				if err != nil {
-					return err, cancle
-				}
-
-				id := p.GetInt64("projectid")
-				if m.checkPunts(id, key) {
-					m.addRecord(key, id, m.getReward(p, 1))
-				}
+			id := p.GetInt64("projectid")
+			if m.checkPunts(id, key) {
+				m.addRecord(key, id, m.getReward(p, 1))
 			}
 		}
 	}

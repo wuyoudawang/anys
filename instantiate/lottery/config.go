@@ -71,6 +71,8 @@ func initModule(c *config.Config) error {
 
 		if itemObj == nil {
 			log.Warning("invaild lottery '%s'", lty.name)
+			delete(conf.lotteries, lty.name)
+			continue
 		}
 
 		db.F.RegisterItem(itemObj)
@@ -109,7 +111,7 @@ func entityBlock(c *config.Config) error {
 	lottery.name = name
 	conf.lotteries[name] = lottery
 	conf.currName = name
-	return nil
+	return c.Block()
 }
 
 func setHedging(c *config.Config) error {

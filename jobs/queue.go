@@ -16,6 +16,7 @@ type CycleQueue struct {
 	lastJob *Job
 	m       sync.Mutex
 	locked  bool
+	mLock   sync.Mutex
 }
 
 func NewCycleQueue() *CycleQueue {
@@ -67,8 +68,8 @@ func (q *CycleQueue) Push(job *Job) bool {
 		return false
 	}
 
-	if q.Empty() && q.locked {
-		q.locked = false
+	if q.Empty() && q.isLocked() {
+		q.setLocked(false)
 		defer q.unlock()
 	}
 
@@ -89,12 +90,26 @@ func (q *CycleQueue) unlock() {
 	q.m.Unlock()
 }
 
+func (q *CycleQueue) setLocked(val bool) {
+	q.mLock.Lock()
+	defer q.mLock.Unlock()
+
+	q.locked = val
+}
+
+func (q *CycleQueue) isLocked() bool {
+	q.mLock.Lock()
+	defer q.mLock.Unlock()
+
+	return q.locked
+}
+
 func (q *CycleQueue) Pop() *Job {
 	q.lock()
 	defer q.unlock()
 
 	if q.Empty() {
-		q.locked = true
+		q.setLocked(true)
 		q.lock()
 	}
 
@@ -127,8 +142,11 @@ func (q *Queue) Push(elem int) {
 }
 
 func (q *Queue) Pop() int {
+	if q.Empty() {
+		return -1
+	}
 
-	elem = q.elems[q.size]
+	elem := q.elems[q.size-1]
 	q.size--
 
 	return elem

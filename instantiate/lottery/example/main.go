@@ -109,8 +109,9 @@ var test_data = []struct {
 
 func main() {
 	var (
-		count      = flag.Int("c", 1, "每种玩法运行多少条记录?")
-		methodName = flag.String("m", "", "特定执行某种方法")
+		count       = flag.Int("c", 1, "每种玩法运行多少条记录?")
+		methodName  = flag.String("m", "", "特定执行某种方法")
+		lotteryName = flag.String("l", "ssj", "要查询的彩种")
 	)
 
 	flag.Parse()
@@ -119,16 +120,17 @@ func main() {
 	initMaster(c)
 
 	lcf := lottery.GetConf(c)
-	lty, err := lcf.GetLottery("ssj")
+	lty, err := lcf.GetLottery(*lotteryName)
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 
 	before := time.Now().UnixNano()
 	id := 1
 	for j := 0; j < *count; j++ {
 
-		data := getData()
+		data := getData(*lotteryName)
+
 		for _, item := range data {
 
 			p := model.NewProjects()
@@ -139,6 +141,8 @@ func main() {
 			p.SetData("multiple", item["multiple"])
 			p.SetData("omodel", item["omodel"])
 			p.SetData("totalprice", item["totalprice"])
+
+			fmt.Println(p.GetString("customname"))
 
 			if *methodName != "" && utils.UcWords(p.GetString("customname")) != utils.UcWords(*methodName) {
 				continue
@@ -153,6 +157,7 @@ func main() {
 			id++
 		}
 	}
+
 	after := time.Now().UnixNano()
 	t := float64(after-before) / float64(time.Second)
 	fmt.Printf("finish:%f \n", t)
@@ -200,11 +205,14 @@ func main() {
 
 }
 
-func getData() []map[string]interface{} {
+func getData(name string) []map[string]interface{} {
+
 	rd, _ := os.Open("./test.data")
 	buf := bufio.NewReader(rd)
 
 	var data []map[string]interface{}
+	find := false
+
 	for {
 		line, _, err := buf.ReadLine()
 		if err == io.EOF {
@@ -213,6 +221,22 @@ func getData() []map[string]interface{} {
 
 		line = bytes.TrimSpace(line)
 		if len(line) > 0 && line[0] != '#' {
+			if line[0] == '[' && line[len(line)-1] == ']' {
+
+				if find {
+					break
+				}
+
+				if name == string(line[1:len(line)-1]) {
+					find = true
+				}
+
+			}
+
+			if !find {
+				continue
+			}
+
 			item := make(map[string]interface{})
 			if err := json.Unmarshal(line, &item); err == nil {
 				data = append(data, item)

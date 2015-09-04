@@ -1,14 +1,10 @@
 package jobs
 
-import (
-	"anys/config"
-)
-
 type Entity interface {
-	Init(g *config.Config) error       // initialize a job
-	Run(g *config.Config) (error, int) // run a job
-	Exit(g *config.Config) error       // exit a job
-	Exception(g *config.Config) error  // a job in running produce a fatal error
+	Init(job *Job) (error, int)    // initialize a job
+	Run(job *Job) (error, int)     // run a job
+	Exit(job *Job) (error, int)    // exit a job
+	Exception(job *Job, level int) // a job in running produce a fatal error
 }
 
 // errors level
@@ -22,18 +18,18 @@ const (
 type Default struct {
 }
 
-func (d *Default) Init(g *config.Config) error {
-	return nil
-}
-
-func (d *Default) Run(g *config.Config) (error, int) {
+func (d *Default) Init(job *Job) (error, int) {
 	return nil, NoErrLvl
 }
 
-func (d *Default) Exit(g *config.Config) error {
-	return nil
+func (d *Default) Run(job *Job) (error, int) {
+	return nil, NoErrLvl
 }
 
-func (d *Default) Exception(g *config.Config) error {
-	return nil
+func (d *Default) Exit(job *Job) (error, int) {
+	return nil, NoErrLvl
+}
+
+func (d *Default) Exception(job *Job, level int) {
+
 }

@@ -14,15 +14,15 @@ import (
 func main() {
 	c := &config.Config{}
 	initMaster(c)
-	go processLottery(c, "tcaifive")
-	processLottery(c, "tcaithird")
+	go processLottery(c, "tcaifive", 60)
+	go processLottery(c, "TCFFC", 30)
+	processLottery(c, "tcaithird", 60)
 
 	exitMaster(c)
 	fmt.Println("finish")
 }
 
-func processLottery(c *config.Config, name string) {
-	issueinfo := model.NewIssueinfo()
+func processLottery(c *config.Config, name string, interval time.Duration) {
 	p := model.NewProjects()
 
 	lcf := lottery.GetConf(c)
@@ -31,11 +31,11 @@ func processLottery(c *config.Config, name string) {
 		panic(err.Error())
 	}
 
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(interval * time.Second)
 
 	for range ticker.C {
 
-		issue := issueinfo.GetCurrentIssue(lty.GetId())
+		issue := model.GetCurrentIssue(lty.GetId())
 		if issue == nil {
 			continue
 		}

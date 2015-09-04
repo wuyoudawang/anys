@@ -5,12 +5,13 @@ import (
 	"testing"
 )
 
-var c = newConvert(1, 9)
+var c = newConvert(1, 11)
 
 func Test_Convert(t *testing.T) {
 
-	fmt.Println(c.number(107796))
-	fmt.Println(c.getLen(107796))
+	fmt.Println(c.integer("1111111111"))
+	fmt.Println(c.integer("1111111110"))
+	fmt.Println(c.number(768955))
 	// lotteryVal, _ := c.integer("0909")
 	// fmt.Println(lotteryVal)
 	// fmt.Println(c.number(lotteryVal))
