@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"anys/instantiate/lottery/model"
+	"anys/jobs"
 	"anys/log"
 	"anys/pkg/utils"
 )
@@ -276,4 +277,26 @@ func (l *Lottery) Process() {
 	}
 
 	l.SendReward(key)
+}
+
+type lotteryJob struct {
+	lty *Lottery
+}
+
+func (lj *lotteryJob) Init(job *jobs.Job) (error, int) {
+	return nil, 0
+}
+
+func (lj *lotteryJob) Run(job *jobs.Job) (error, int) {
+	lj.lty.Process()
+	return nil, 0
+}
+
+func (lj *lotteryJob) Exit(job *jobs.Job) (error, int) {
+
+	return nil, 0
+}
+
+func (lj *lotteryJob) Exception(job *jobs.Job, status int) {
+
 }

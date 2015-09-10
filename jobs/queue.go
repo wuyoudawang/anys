@@ -68,7 +68,7 @@ func (q *CycleQueue) Push(job *Job) bool {
 		return false
 	}
 
-	if q.Empty() && q.isLocked() {
+	if q.isLocked() {
 		q.setLocked(false)
 		defer q.unlock()
 	}
@@ -109,6 +109,7 @@ func (q *CycleQueue) Pop() *Job {
 	defer q.unlock()
 
 	if q.Empty() {
+
 		q.setLocked(true)
 		q.lock()
 	}

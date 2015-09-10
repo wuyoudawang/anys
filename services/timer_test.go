@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -35,7 +36,7 @@ func (t *testJob) Exception(job *jobs.Job, status int) {
 func TestTimer(t *testing.T) {
 	eng := jobs.NewEngine(1)
 	eng.RegisterServer(NewTimerServer(eng), "test")
-	eng.Serve()
+	eng.RegisterServer(NewLocalServer(eng, processSig, os.Interrupt), "sfe")
 
 	job := eng.NewJob(&testJob{}, "test")
 	job.SetTimeout(4 * time.Second)
@@ -44,6 +45,11 @@ func TestTimer(t *testing.T) {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello"))
 	})
-	err := http.ListenAndServe("127.0.0.1:80", nil)
-	fmt.Println(err)
+
+	eng.Serve()
+}
+
+func processSig(sig os.Signal) error {
+	fmt.Println(sig)
+	return nil
 }

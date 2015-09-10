@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -20,4 +21,13 @@ func TestNOT(t *testing.T) {
 		// t.Fatal(NOT(int64(i)))
 		t.Fatal(^1)
 	}
+}
+
+func TestPHPSerialize(t *testing.T) {
+	str := `a:1:{i:1;a:9:{s:9:"starttime";s:8:"droptime";s:6:"status";a:1:{i:0;i:3;}}}`
+	data, err := PHPSerialize([]byte(str))
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(data)
 }

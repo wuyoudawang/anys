@@ -12,7 +12,7 @@ const (
 )
 
 type Server interface {
-	Serve() error
+	Serve()
 	Stop() error
 	BeforePendingJob(*Job) error
 	AfterPendingJob(*Job) error
@@ -67,14 +67,15 @@ func (r *Restroom) Push(index int) {
 }
 
 type Engine struct {
-	c          *Container
-	workers    []*Worker
-	servers    map[string]Server
-	restroom   *Restroom
-	list       *Worker
-	wg         sync.WaitGroup
-	ch         chan *Job
-	isShutdown bool
+	c             *Container
+	workers       []*Worker
+	servers       map[string]Server
+	restroom      *Restroom
+	list          *Worker
+	wg            sync.WaitGroup
+	ch            chan *Job
+	maxGoroutines int
+	isShutdown    bool
 }
 
 const (
@@ -114,15 +115,19 @@ func (e *Engine) Rest(index int) {
 	e.restroom.Push(index)
 }
 
+func (e *Engine) Active(job *Job) {
+	e.AddJob(job)
+}
+
 func (e *Engine) AddJob(job *Job) {
 
 	if e.isShutdown {
 		return
 	}
 
-	job.isActive = true
-	if !job.isRunning &&
-		!job.isExit {
+	job.openStatus(StatusActived)
+	if !job.IsRunning() &&
+		!job.IsExited() {
 
 		e.ch <- job
 	}
@@ -171,7 +176,7 @@ func (e *Engine) start() {
 	do:
 		n++
 
-		if job.isActive {
+		if job.IsActived() {
 
 			if job.timeout == TIME_INFINITY {
 				e.c.Post(job)
@@ -179,7 +184,7 @@ func (e *Engine) start() {
 				e.schedule(job)
 			}
 
-		} else if !job.isRunning {
+		} else if !job.GetStatus(StatusPending) {
 			e.c.Pending(job)
 		}
 
@@ -202,17 +207,14 @@ func (e *Engine) processPosted() {
 }
 
 func (e *Engine) working(worker *Worker) {
-	var pos *Worker
-
-	if e.list == nil {
-		return
-	}
+	var pos **Worker
+	pos = &(e.list)
 
 	for w := e.list; w != nil; w = w.next {
-		pos = w
+		pos = &w
 	}
 
-	pos.next = worker
+	*pos = worker
 
 }
 
@@ -221,20 +223,52 @@ func (e *Engine) schedule(job *Job) {
 	index := e.restroom.Pop()
 
 	if index != -1 {
+
 		worker := e.workers[index]
 		worker.Add(job)
 		e.working(worker)
 	} else {
 
+		joined := false
 		for worker := e.list; worker != nil; worker = worker.next {
 
 			if worker.Add(job) {
+				joined = true
 				break
 			}
 		}
 
+		if joined {
+			return
+		}
+
+		size := len(e.workers)
+		if size < e.getMaxGoroutines() {
+			worker := NewWorker(index, e)
+			e.workers = append(e.workers, worker)
+			worker.Add(job)
+			e.working(worker)
+		}
+
+		// job.log()
 	}
 
+}
+
+func (e *Engine) SetMaxGoroutines(val int) {
+	if val > MAXGOROUTINE {
+		val = MAXGOROUTINE
+	}
+
+	e.maxGoroutines = val
+}
+
+func (e *Engine) getMaxGoroutines() int {
+	if e.maxGoroutines < defaultGoRoutine {
+		e.maxGoroutines = defaultGoRoutine
+	}
+
+	return e.maxGoroutines
 }
 
 func (e *Engine) Serve() {
@@ -247,7 +281,7 @@ func (e *Engine) Serve() {
 		go worker.Run()
 	}
 
-	go e.start()
+	e.start()
 }
 
 func (e Engine) RegisterServer(server Server, name string) error {
@@ -303,6 +337,10 @@ func (e *Engine) Register(job *Job) {
 }
 
 func (e *Engine) Pending(job *Job) error {
+	if job.IsExited() {
+		return fmt.Errorf("this job has already executed '%s'", job.name)
+	}
+
 	for _, server := range e.servers {
 		if err := server.BeforePendingJob(job); err != nil {
 			fmt.Println(err)

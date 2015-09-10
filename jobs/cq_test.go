@@ -26,4 +26,26 @@ func TestCQ(t *testing.T) {
 	}
 }
 
-func TestEngine() {}
+func TestHeap(t *testing.T) {
+	heap := newMinHeap(
+		16,
+		func(a, b interface{}) int {
+			jobA := a.(*Job)
+			jobB := b.(*Job)
+
+			return int(jobA.timeout - jobB.timeout)
+		},
+	)
+	for i := 0; i < 4; i++ {
+		job := new(Job)
+		job.name = fmt.Sprintf("%d", i)
+		job.timeout = time.Now().UnixNano() + int64(i)
+		heap.minHeapPush(job)
+	}
+	fmt.Println(heap.minHeapPop())
+	fmt.Println(heap.minHeapPop())
+	fmt.Println(heap.minHeapPop())
+	fmt.Println(heap.minHeapPop())
+	fmt.Println(heap.h)
+
+}

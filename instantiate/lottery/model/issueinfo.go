@@ -109,6 +109,7 @@ func (i *Issueinfo) FinishDraw(code string) error {
 	i.SetData("statuscode", 2)
 	i.SetData("statusfetch", 2)
 	i.SetData("statuslocks", 2)
+	i.SetData("writetime", i.Date())
 	err := i.Save()
 	if err != nil {
 		return err
@@ -136,7 +137,9 @@ func (i *Issueinfo) GetCurrentProjects() []*Projects {
 
 func (i *Issueinfo) FinishSendReward() error {
 	i.SetData("statusbonus", 2)
+	i.SetData("statuscheckbonus", 2)
 	i.SetData("statususerpoint", 2)
+	i.SetData("bonustime", i.Date())
 	return i.Save()
 }
 

@@ -31,24 +31,28 @@ func (t *Timer) Stop() error {
 	return nil
 }
 
-func (t *Timer) Serve() error {
+func (t *Timer) Serve() {
 	for {
 		if t.stoper.IsStop() {
 			break
 		}
 
-		_, timeout := t.setTimer()
-		if timeout == jobs.TIME_INFINITY {
+		now, timeout := t.setTimer()
 
+		if timeout == jobs.TIME_INFINITY {
 			t.timer.Stop()
+		} else if timeout <= now {
+
+			t.eng.ProcessExpireTimer(now)
+			continue
 		}
 
-		now := <-t.timer.C
-		fmt.Println(now)
-		t.eng.ProcessExpireTimer(now.UnixNano())
+		st := <-t.timer.C
+		fmt.Println(st)
+		t.eng.ProcessExpireTimer(st.UnixNano())
+
 	}
 
-	return nil
 }
 
 func (t *Timer) setTimer() (int64, int64) {
@@ -58,9 +62,8 @@ func (t *Timer) setTimer() (int64, int64) {
 	t.mt.Lock()
 	defer t.mt.Unlock()
 	if timeout == jobs.TIME_INFINITY ||
-		(t.lastMinTimeout != jobs.TIME_INFINITY && timeout >= t.lastMinTimeout) {
+		(t.lastMinTimeout != jobs.TIME_INFINITY && t.lastMinTimeout >= now && timeout >= t.lastMinTimeout) {
 
-		t.lastMinTimeout = jobs.TIME_INFINITY
 		return now, timeout
 	} else if timeout > now {
 

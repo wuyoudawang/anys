@@ -92,13 +92,13 @@ func (m *minHeap) minHeapifyUp(i int) {
 func (m *minHeap) minHeapifyDown(i int) {
 	smallest := i
 	if m.minHeapLeft(i) < m.size &&
-		m.compare(m.h[m.minHeapLeft(i)], m.h[smallest]) > 0 {
+		m.compare(m.h[m.minHeapLeft(i)], m.h[smallest]) < 0 {
 
 		smallest = m.minHeapLeft(i)
 	}
 
 	if m.minHeapRight(i) < m.size &&
-		m.compare(m.h[m.minHeapRight(i)], m.h[smallest]) > 0 {
+		m.compare(m.h[m.minHeapRight(i)], m.h[smallest]) < 0 {
 
 		smallest = m.minHeapRight(i)
 	}

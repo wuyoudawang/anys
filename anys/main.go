@@ -14,9 +14,16 @@ import (
 func main() {
 	c := &config.Config{}
 	initMaster(c)
-	go processLottery(c, "tcaifive", 60)
-	go processLottery(c, "TCFFC", 30)
-	processLottery(c, "tcaithird", 60)
+
+	lcf := lottery.GetConf(c)
+	last := 1
+	for name, _ := range lcf.GetAllLottery() {
+		if last == len(lcf.GetAllLottery()) {
+			processLottery(c, name, 30)
+		}
+		go processLottery(c, name, 30)
+		last++
+	}
 
 	exitMaster(c)
 	fmt.Println("finish")
@@ -71,6 +78,7 @@ func processLottery(c *config.Config, name string, interval time.Duration) {
 		issue.SetData("statuslocks", 2)
 		issue.SetData("statustasktoproject", 2)
 		issue.SetData("statusdeduct", 2)
+		issue.SetData("writetime", issue.Date())
 		err = issue.Save()
 		fmt.Println(err)
 

@@ -19,6 +19,10 @@ type lotteryConf struct {
 	currName  string
 }
 
+func (l *lotteryConf) GetAllLottery() map[string]*Lottery {
+	return l.lotteries
+}
+
 func (l *lotteryConf) GetLottery(name string) (*Lottery, error) {
 	if lty, exists := l.lotteries[name]; exists {
 		return lty, nil

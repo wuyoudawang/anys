@@ -44,16 +44,27 @@ func (w *Worker) Run() {
 		}
 
 		job := w.cq.Pop()
-		if err, level := job.init(); err != nil {
-			job.exception(level)
+		if !job.GetStatus(StatusInitialized) {
+			if err, level := job.init(); err != nil {
+				job.exception(level)
+			}
+
+			if job.GetStatus(StatusDied) {
+				continue
+			}
 		}
 
 		if err, level := job.run(); err != nil {
 			job.exception(level)
 		}
 
-		if job.downContact&extends > 0 {
+		if job.jobType&extends > 0 {
 			job.Extends(job.next)
+		}
+
+		if job.jobType&timer > 0 {
+			job.Pending()
+			continue
 		}
 
 		job.exit()

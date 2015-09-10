@@ -12,35 +12,41 @@ import (
 )
 
 const (
-	StatusOk  = 0
-	StatusErr = 1
-
 	TIME_INFINITY = -1
 
-	mask    = 0x0000000f
+	mask    = 0x000ffff
 	extends = 1 << iota
 	join
 	mulExtends
 	mulJoin
+	timer
+
+	StatusOk = 1 << iota
+	StatusErr
+	StatusRuning
+	StatusExited
+	StatusInitialized
+	StatusActived
+	StatusPending
+	StatusTimeout
+	StatusDied
 )
 
 type Job struct {
-	e           Entity
-	eng         *Engine
-	name        string
-	args        []string
-	nice        int
-	status      int
-	downContact int
+	e    Entity
+	eng  *Engine
+	name string
+	args []string
+	nice int
+
 	workerIndex int
 	heapIndex   int
 	interval    time.Duration
 	timeout     int64
 
-	isTimeout bool
-	isActive  bool
-	isRunning bool
-	isExit    bool
+	jobType    int
+	status     int
+	statusLock sync.Mutex
 
 	stdin  *Input
 	stderr *Output
@@ -176,6 +182,13 @@ func (j *Job) SetNice(val int) *Job {
 }
 
 func (j *Job) SetTimeout(val time.Duration) *Job {
+	j.interval = val
+
+	return j
+}
+
+func (j *Job) Interval(val time.Duration) *Job {
+	j.jobType |= timer
 	j.interval = val
 
 	return j
@@ -392,6 +405,39 @@ func (j *Job) Del(root **Job) {
 
 }
 
+func (j *Job) openStatus(status int) {
+	j.statusLock.Lock()
+	defer j.statusLock.Unlock()
+
+	j.status |= status
+}
+
+func (j *Job) closeStatus(status int) {
+	j.statusLock.Lock()
+	defer j.statusLock.Unlock()
+
+	j.status &= ^status
+}
+
+func (j *Job) GetStatus(status int) bool {
+	j.statusLock.Lock()
+	defer j.statusLock.Unlock()
+
+	return j.status&status > 0
+}
+
+func (j *Job) IsRunning() bool {
+	return j.GetStatus(StatusRuning)
+}
+
+func (j *Job) IsExited() bool {
+	return j.GetStatus(StatusExited)
+}
+
+func (j *Job) IsActived() bool {
+	return j.GetStatus(StatusActived)
+}
+
 func (j *Job) min() *Job {
 	temp := j
 	for temp.left != nil {
@@ -409,7 +455,7 @@ func (j *Job) Extends(job *Job) {
 }
 
 func (j *Job) Pending() error {
-	if j.eng != nil {
+	if j.eng == nil {
 		return fmt.Errorf("job '%s' using an empty enginge", j.name)
 	}
 
@@ -417,10 +463,20 @@ func (j *Job) Pending() error {
 }
 
 func (j *Job) init() (error, int) {
-	return j.e.Init(j)
+	defer j.openStatus(StatusInitialized)
+
+	err, level := j.e.Init(j)
+	if level == FatalErrLvl {
+		j.openStatus(StatusDied)
+	}
+
+	return err, level
 }
 
 func (j *Job) run() (error, int) {
+	j.openStatus(StatusRuning)
+	defer j.closeStatus(StatusRuning)
+
 	return j.e.Run(j)
 }
 
@@ -429,6 +485,8 @@ func (j *Job) exception(level int) {
 }
 
 func (j *Job) exit() (error, int) {
+	defer j.openStatus(StatusExited)
+
 	return j.e.Exit(j)
 }
 
@@ -485,9 +543,7 @@ func NewContainer() *Container {
 func (c *Container) Register(job *Job) *Container {
 
 	job.Add(&c.root)
-	job.isActive = false
-	job.isRunning = false
-	job.isExit = false
+	job.closeStatus(mask)
 
 	return c
 }
@@ -496,6 +552,7 @@ func (c *Container) Pending(job *Job) error {
 	c.timersMt.Lock()
 	defer c.timersMt.Unlock()
 
+	job.openStatus(StatusPending)
 	timeout := job.GetTimeout()
 	if timeout != TIME_INFINITY {
 		job.timeout = timeout
@@ -530,7 +587,7 @@ func (c *Container) ProcessExpireTimer(now int64) {
 			break
 		}
 
-		job.isTimeout = true
+		job.openStatus(StatusTimeout)
 		c.timers.minHeapPop()
 
 		job.eng.AddJob(job)
