@@ -91,7 +91,7 @@ func (fw *filterWriter) flush(offset uint64) {
 		return
 	}
 	for x := int(offset / filterBase); x > len(fw.offsets); {
-		w.generate()
+		fw.generate()
 	}
 }
 
