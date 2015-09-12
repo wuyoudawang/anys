@@ -23,6 +23,10 @@ func NewTable(lty *Lottery, n int) *Table {
 	return t
 }
 
+func (t *Table) Clone(lty *Lottery) *Table {
+	return NewTable(lty, len(t.container))
+}
+
 func (t *Table) Hash(key int) int {
 	return key % t.spans
 }

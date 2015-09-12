@@ -1,6 +1,9 @@
 package model
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	db "github.com/liuzhiyi/go-db"
@@ -69,6 +72,11 @@ func (p *Projects) Reward(reward float64) error {
 		return err
 	}
 
+	err = p.Rebate()
+	if err != nil {
+		return err
+	}
+
 	_, err = p.CreateOrder(OrderReward, reward)
 	return err
 }
@@ -85,6 +93,15 @@ func (p *Projects) GetUserTree() string {
 }
 
 func (p *Projects) Unreward() error {
+	transaction := p.GetTransaction()
+	if transaction == nil {
+		transaction = p.GetResource().BeginTransaction()
+		p.SetTransaction(transaction)
+		defer transaction.Commit()
+	}
+
+	p.Rebate()
+
 	p.SetData("isgetprize", 2)
 	return p.Save()
 }
@@ -94,6 +111,135 @@ func (p *Projects) FlushTask() error {
 	tsk.SetTransaction(p.GetTransaction())
 	tsk.Load(p.GetInt("taskid"))
 	return tsk.Flush(p)
+}
+
+func (p *Projects) GetCurrentUserMaxPoint() float64 {
+	pg := NewPrizegroup()
+	return pg.GetPointByPgcodeId(p.GetInt64("lotteryid"), p.GetString("maxmodel"))
+}
+
+func (p *Projects) GetCurrentUserPoint() float64 {
+	pg := NewPrizegroup()
+	return pg.GetPointByPgcodeId(p.GetInt64("lotteryid"), p.GetString("omodel"))
+}
+
+func (p *Projects) GetUserPgcode(userid int) string {
+	u := NewUsers()
+	u.Load(userid)
+	return u.GetPgcodeByLotteryId(p.GetInt64("lotteryid"))
+}
+
+func (p *Projects) GetUserPoint(userid int) float64 {
+	pgcode := p.GetUserPgcode(userid)
+	if pgcode != "" {
+		pg := NewPrizegroup()
+		return pg.GetPointByPgcodeId(p.GetInt64("lotteryid"), pgcode)
+	}
+
+	return 0
+}
+
+func (p *Projects) Rebate() error {
+	var (
+		point float64
+	)
+
+	// 判断是否属于特殊玩法
+	// if "syxw" == getLotteryName() && (p.FuncName == "Odd" || p.FuncName == "MidSize") {
+	// 	if p.Omodel >= 1850.0 {
+	// 		step := 2
+	// 		uintRate := 0.001
+	// 		tmpId := ""
+	// 		pgCodeA := 0
+	// 		pgCodeB := 0
+	// 		for _, parentId := range strings.Split(p.ParentTree, ",") {
+	// 			parentId = strings.TrimSpace(parentId)
+	// 			if parentId != "" {
+	// 				pgcode := GetUserPgcode(parentId)
+	// 				if pgcode != "" {
+	// 					pgCodeA = pgCodeB
+	// 					pgCodeB, _ = strconv.Atoi(pgcode)
+	// 					if pgCodeB > 0 && pgCodeA > 0 && float64((pgCodeA-pgCodeB)/step)*uintRate > 0 {
+	// 						money := float64((pgCodeA-pgCodeB)/step) * uintRate * p.TotalPrice
+	// 						insertOrder(p, money, tmpId, "4") //返点插入订单需要在更新额度前完成，不然会统计不到转变前额度
+	// 					}
+	// 					tmpId = parentId
+	// 				}
+	// 			}
+	// 		}
+
+	// 		// 计算自己直接上级的返点
+	// 		pgCodeA, _ = strconv.Atoi(p.MaxModel)
+	// 		if float64((pgCodeB-pgCodeA)/step)*uintRate > 0 {
+	// 			money := float64((pgCodeB-pgCodeA)/step) * uintRate * p.TotalPrice
+	// 			insertOrder(p, money, tmpId, "4") //返点插入订单需要在更新额度前完成，不然会统计不到转变前额度
+	// 		}
+
+	// 		//计算当前用户选择的投注模式和最大模式之间的返点差
+	// 		pgCodeB = int(p.Omodel)
+	// 		if float64((pgCodeA-pgCodeB)/step)*uintRate > 0 {
+	// 			money := float64((pgCodeA-pgCodeB)/step) * uintRate * p.TotalPrice
+	// 			insertOrder(p, money, p.UserId, "4") //返点插入订单需要在更新额度前完成，不然会统计不到转变前额度
+	// 		}
+	// 	}
+	// } else {
+
+	//计算父路径用户的返点差,数据库存放顶级降序，所以第一个是代理
+	lastParentPoint := 0.0
+	parentPoint := 0.0
+	lastParentId := 0
+	maxPoint := p.GetCurrentUserMaxPoint()
+	for _, idStr := range strings.Split(p.GetUserTree(), ",") {
+		parentId, err := strconv.Atoi(idStr)
+		if err != nil {
+			if p.GetTransaction() != nil {
+				p.GetTransaction().Rollback()
+			}
+			return err
+		}
+
+		parentPoint := p.GetUserPoint(parentId)
+		if parentPoint < 0 {
+			if p.GetTransaction() != nil {
+				p.GetTransaction().Rollback()
+			}
+			return fmt.Errorf("")
+		}
+
+		if lastParentId > 0 {
+			if lastParentPoint-parentPoint > 0 {
+				amount := (lastParentPoint - parentPoint) * p.GetFloat64("totalprice")
+				_, err := p.CreateOrder(OrderRebate, amount)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		lastParentId = parentId
+		lastParentPoint = parentPoint
+	}
+
+	// 计算自己直接上级的返点
+	if parentPoint > 0 && parentPoint-maxPoint > 0 {
+		amount := (parentPoint - maxPoint) * p.GetFloat64("totalprice")
+		_, err := p.CreateOrder(OrderRebate, amount) //返点插入订单需要在更新额度前完成，不然会统计不到转变前额度
+		if err != nil {
+			return err
+		}
+	}
+
+	//计算当前用户选择的投注模式和最大模式之间的返点差
+	point = p.GetCurrentUserPoint()
+	if maxPoint > point {
+		amount := (maxPoint - point) * p.GetFloat64("totalprice")
+		_, err := p.CreateOrder(OrderRebate, amount) //返点插入订单需要在更新额度前完成，不然会统计不到转变前额度
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (p *Projects) Cancel() error {

@@ -33,6 +33,10 @@ func (t *testJob) Exception(job *jobs.Job, status int) {
 	fmt.Println("has error")
 }
 
+func (t *testJob) Clone() (jobs.Entity, error) {
+	return t, nil
+}
+
 func TestTimer(t *testing.T) {
 	eng := jobs.NewEngine(1)
 	eng.RegisterServer(NewTimerServer(eng), "test")

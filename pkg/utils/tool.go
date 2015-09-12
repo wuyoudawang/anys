@@ -267,12 +267,12 @@ func (ps *PHPSerializer) toBool(byt []byte) (interface{}, error) {
 func (ps PHPSerializer) toMap(byt []byte) (interface{}, error) {
 	s := bytes.IndexByte(byt, ':')
 	if s == -1 {
-		return nil, fmt.Errorf("this sub-string dose not found")
+		return nil, fmt.Errorf("this sub-string dose not found in the '%s'", string(byt))
 	}
 
 	e := bytes.IndexByte(byt[s+1:], ':')
 	if e == -1 {
-		return nil, fmt.Errorf("this sub-string dose not found")
+		return nil, fmt.Errorf("this sub-string dose not found in the '%s'", string(byt[s+1:]))
 	}
 
 	e += s + 1
@@ -284,15 +284,19 @@ func (ps PHPSerializer) toMap(byt []byte) (interface{}, error) {
 
 	s = bytes.IndexByte(byt[e+1:], '{')
 	if s == -1 {
-		return nil, fmt.Errorf("this sub-string dose not found")
+		return nil, fmt.Errorf("this sub-string dose not found in the '%s'", string(byt[e+1:]))
 	}
 
 	s += e + 1
+	suffixLen := 1
 	if !bytes.HasSuffix(byt[s+1:], []byte{'}'}) {
-		return nil, fmt.Errorf("this sub-string dose not found")
+		if !bytes.HasSuffix(byt[s+1:], []byte{'}', ';'}) {
+			return nil, fmt.Errorf("this sub-string dose not found in the '%s'", string(byt[s+1:]))
+		}
+		suffixLen = 2
 	}
 
-	src = byt[s+1 : len(byt)-1]
+	src = byt[s+1 : len(byt)-suffixLen]
 	src = bytes.TrimSpace(src)
 
 	n := 0
@@ -306,7 +310,7 @@ func (ps PHPSerializer) toMap(byt []byte) (interface{}, error) {
 			if n == length {
 				break
 			} else {
-				return nil, fmt.Errorf("this sub-string dose not found")
+				return nil, fmt.Errorf("this sub-string dose not found in the '%s'", string(src[i:]))
 			}
 		}
 
@@ -322,7 +326,7 @@ func (ps PHPSerializer) toMap(byt []byte) (interface{}, error) {
 		} else {
 			inter, err := ps.toInt(src[i : j+1])
 			if err != nil {
-				return nil, fmt.Errorf("this sub-string dose not found")
+				return nil, err
 			}
 
 			val := inter.(int64)
@@ -331,6 +335,10 @@ func (ps PHPSerializer) toMap(byt []byte) (interface{}, error) {
 
 		j++
 		i = j
+		if j >= len(src) {
+			break
+		}
+
 		c := src[i]
 		var inter interface{}
 		switch c {
@@ -338,83 +346,86 @@ func (ps PHPSerializer) toMap(byt []byte) (interface{}, error) {
 			count := 1
 			j = bytes.IndexByte(src[i:], '{')
 			if j == -1 {
-				return nil, fmt.Errorf("invalid string")
+				return nil, fmt.Errorf("invalid string '%s'", string(src[i:]))
 			}
 
-			for k := j + i + 1; k < len(src); k++ {
+			j += i + 1
+			for k := j; k < len(src); k++ {
 				if src[k] == '{' {
 					count++
 				} else if src[k] == '}' {
 					if count == 0 {
-						return nil, fmt.Errorf("invalid string")
+						return nil, fmt.Errorf("invalid string '%s'", string(src))
 					}
+
 					count--
-				} else if count == 0 {
-					j = k
-					break
+
+					if count == 0 {
+						j = k
+						break
+					}
 				}
-				j = k
 			}
 
 			if count > 0 {
-				return nil, fmt.Errorf("invalid string")
+				return nil, fmt.Errorf("invalid string '%s'", string(src))
 			}
 
 			inter, err = ps.toMap(src[i : j+1])
 			if err != nil {
-				return nil, fmt.Errorf("this sub-string dose not found")
+				return nil, err
 			}
 
 		case ps.phpString:
 			j = bytes.IndexByte(src[i:], ';')
 			if j == -1 {
-				return nil, fmt.Errorf("this sub-string dose not found")
+				return nil, fmt.Errorf("this sub-string dose not found in the '%s'", string(byt[i:]))
 			}
 
 			j += i
 			inter, err = ps.toString(src[i : j+1])
 			if err != nil {
-				return nil, fmt.Errorf("this sub-string dose not found")
+				return nil, err
 			}
 
 		case ps.phpInt:
 			j = bytes.IndexByte(src[i:], ';')
 			if j == -1 {
-				return nil, fmt.Errorf("this sub-string dose not found")
+				return nil, fmt.Errorf("this sub-string dose not found in the '%s'", string(byt[i:]))
 			}
 
 			j += i
 			inter, err = ps.toInt(src[i : j+1])
 			if err != nil {
-				return nil, fmt.Errorf("this sub-string dose not found")
+				return nil, err
 			}
 
 		case ps.phpFloat:
 			j = bytes.IndexByte(src[i:], ';')
 			if j == -1 {
-				return nil, fmt.Errorf("this sub-string dose not found")
+				return nil, fmt.Errorf("this sub-string dose not found in the '%s'", string(byt[i:]))
 			}
 
 			j += i
 			inter, err = ps.toFloat64(src[i : j+1])
 			if err != nil {
-				return nil, fmt.Errorf("this sub-string dose not found")
+				return nil, err
 			}
 
 		case ps.phpBool:
 			j = bytes.IndexByte(src[i:], ';')
 			if j == -1 {
-				return nil, fmt.Errorf("this sub-string dose not found")
+				return nil, fmt.Errorf("this sub-string dose not found in the '%s'", string(byt[i:]))
 			}
 
 			j += i
 			inter, err = ps.toBool(src[i : j+1])
 			if err != nil {
-				return nil, fmt.Errorf("this sub-string dose not found")
+				return nil, err
 			}
 
 		default:
-			return nil, fmt.Errorf("invalid string")
+			return nil, fmt.Errorf("invalid string '%s'", string(src))
 		}
 
 		j++
@@ -460,6 +471,13 @@ func PHPSerialize(byt []byte) (interface{}, error) {
 	return serializer.Serialize(byt)
 }
 
+/**
+* 计算相对于当前时间的时间戳
+* @author；rey
+* @date: 2015.9.11
+* @param: layout 日期格式，格式化时间
+* @return；时间戳和错误
+ */
 func StringToTime(layout string, val string) (int64, error) {
 	t, err := time.Parse(layout, val)
 	if err != nil {
@@ -467,4 +485,18 @@ func StringToTime(layout string, val string) (int64, error) {
 	}
 
 	return t.UnixNano(), nil
+}
+
+/**
+* 时间戳转化为日期
+* @author；rey
+* @date: 2015.9.11
+* @param: layout 日期格式，纳秒
+* @return；日期
+ */
+func TimeToString(layout string, ns int64) string {
+	t := time.Time{}
+	t.Add(time.Duration(ns))
+
+	return t.Format(layout)
 }

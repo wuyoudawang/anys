@@ -24,7 +24,7 @@ func GetCurrentIssue(lotteryId int64) *Issueinfo {
 	ise := NewIssueinfo()
 	collection := ise.GetCollection()
 	collection.AddFieldToSelect(
-		"issueid, issue",
+		"issueid, issue, belongdate",
 		collection.GetMainAlias(),
 	)
 

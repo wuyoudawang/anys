@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"anys/instantiate/lottery/model"
-	"anys/jobs"
 	"anys/log"
 	"anys/pkg/utils"
 )
@@ -157,6 +156,16 @@ func (l *Lottery) Dispatch(p *model.Projects) error {
 	return nil
 }
 
+func (l *Lottery) Clone() (*Lottery, error) {
+	lty := &Lottery{}
+
+	lty.cvt = l.cvt
+	lty.t = l.t.Clone(lty)
+	lty.methods = l.methods
+
+	return lty, nil
+}
+
 // choose a random number
 func (l *Lottery) Draw() string {
 
@@ -242,7 +251,20 @@ func (l *Lottery) SendReward(key int) error {
 
 	}
 
-	// unreward projects
+	set := l.curIssue.GetCurrentProjects()
+	for _, item := range set {
+		err := item.Unreward()
+		if err != nil {
+			log.Error("the project(%d) has an error:%s", item.GetId(), err.Error())
+		}
+
+		if project.GetInt64("taskid") > 0 {
+			err = project.FlushTask()
+			if err != nil {
+				log.Error("An error occurred while freshing the task(%d): '%s'", project.GetInt64("taskid"), err.Error())
+			}
+		}
+	}
 
 	return l.curIssue.FinishSendReward()
 }
@@ -277,26 +299,4 @@ func (l *Lottery) Process() {
 	}
 
 	l.SendReward(key)
-}
-
-type lotteryJob struct {
-	lty *Lottery
-}
-
-func (lj *lotteryJob) Init(job *jobs.Job) (error, int) {
-	return nil, 0
-}
-
-func (lj *lotteryJob) Run(job *jobs.Job) (error, int) {
-	lj.lty.Process()
-	return nil, 0
-}
-
-func (lj *lotteryJob) Exit(job *jobs.Job) (error, int) {
-
-	return nil, 0
-}
-
-func (lj *lotteryJob) Exception(job *jobs.Job, status int) {
-
 }

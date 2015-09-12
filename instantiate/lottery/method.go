@@ -1194,7 +1194,7 @@ func (m *Method) threeSum(bet string, p *model.Projects, s int) (error, int) {
 
 	for _, num := range nums {
 		v, _ := strconv.Atoi(num)
-		com := m.lty.cvt.getSumCom(v, 2)
+		com := m.lty.cvt.getSumCom(v, 3)
 
 		for _, str := range com {
 

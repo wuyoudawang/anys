@@ -15,11 +15,13 @@ const (
 	TIME_INFINITY = -1
 
 	mask    = 0x000ffff
-	extends = 1 << iota
-	join
-	mulExtends
-	mulJoin
-	timer
+	JobDown = 1 << iota
+	JobUp
+	JobMulDown
+	JobMulUp
+	JobTimer
+	JobTicker
+	JobEveryTime
 
 	StatusOk = 1 << iota
 	StatusErr
@@ -187,21 +189,50 @@ func (j *Job) SetTimeout(val time.Duration) *Job {
 	return j
 }
 
-func (j *Job) Interval(val time.Duration) *Job {
-	j.jobType |= timer
+func (j *Job) Timer(val time.Duration) *Job {
+	j.jobType |= JobTimer
+	j.interval = val
+
+	return j
+}
+
+func (j *Job) Ticker(val time.Duration) *Job {
+	j.jobType |= JobTicker
+	j.interval = val
+
+	return j
+}
+
+func (j *Job) EveryTime(val time.Duration) *Job {
+	j.jobType |= JobEveryTime
 	j.interval = val
 
 	return j
 }
 
 func (j *Job) GetTimeout() int64 {
-
+	now := time.Now()
 	if j.interval == 0 {
 
 		j.interval = 5 * time.Second
 	}
 
-	return time.Now().Add(j.interval).UnixNano()
+	var interval int64
+	if j.jobType&JobTicker > 0 {
+		if j.timeout > 0 {
+			interval = j.interval.Nanoseconds() - (now.UnixNano() - j.timeout)
+		} else {
+			interval = j.interval.Nanoseconds()
+		}
+	} else {
+		interval = j.interval.Nanoseconds()
+	}
+
+	if interval > 0 {
+		return now.Add(time.Duration(interval)).UnixNano()
+	} else {
+		return 0
+	}
 }
 
 func (j *Job) Add(root **Job) *Job {
@@ -490,6 +521,41 @@ func (j *Job) exit() (error, int) {
 	return j.e.Exit(j)
 }
 
+func (j *Job) LogInfo() error {
+	if j.log != nil {
+		return j.log.WriteMsg("msg", NoErrLvl)
+	}
+
+	return nil
+}
+
+func (j *Job) Clone() (*Job, error) {
+	entity, err := j.e.Clone()
+	if err != nil {
+		return nil, err
+	}
+
+	job := &Job{
+		e:           entity,
+		eng:         j.GetEngine(),
+		name:        j.name,
+		stdin:       j.stdin,
+		stdout:      j.stdout,
+		stderr:      j.stderr,
+		key:         j.key,
+		heapIndex:   -1,
+		workerIndex: -1,
+		args:        j.args,
+		jobType:     j.jobType,
+		timeout:     j.timeout,
+		interval:    j.interval,
+		log:         j.log,
+	}
+	job.openStatus(StatusInitialized)
+
+	return job, nil
+}
+
 func (j *Job) CmdString() string {
 	return fmt.Sprintf("%s %s", j.name, strings.Join(j.args, ", "))
 }
@@ -555,9 +621,13 @@ func (c *Container) Pending(job *Job) error {
 	job.openStatus(StatusPending)
 	timeout := job.GetTimeout()
 	if timeout != TIME_INFINITY {
-		job.timeout = timeout
-		c.timers.minHeapPush(job)
-		return nil
+		if timeout == 0 {
+			job.eng.Active(job)
+		} else {
+			job.timeout = timeout
+			c.timers.minHeapPush(job)
+			return nil
+		}
 	}
 
 	return fmt.Errorf("timeout must is positive")

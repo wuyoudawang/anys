@@ -1,5 +1,5 @@
 #时时彩
-[ssj]
+[tcaifive]
 
 	{"funcname":"PrevTwoNum", "code":"1|1|*|*|*;0,1,2,3,4,5,6,7,8,9|0,1,2,3,4,5,6,7,8,9|*|*|*", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
 	{"funcname":"OneNum", "code":"0,1,2,3,4,5,6,7,8,9|*|*|*|*", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
@@ -29,6 +29,7 @@
 	{"funcname":"PrevSixComNum", "code":"0,1,2,3,4,5,6,7,8,9", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
 	
 	{"funcname":"PrevTwoSumCom", "code":"7,9", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
+	{"funcname":"prevThreeSum", "code":"9,10,11,19,20,21", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
 	{"funcname":"PrevTwoTwoNum", "code":"0,1,2,3,4,5,6,7,8,9", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
 	{"funcname":"PrevTwoSizeOdd", "code":"2|1", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}
 	{"funcname":"EverythingGood", "code":"0,1,2,3,4,5,6,7,8,9", "modes":"1", "omodel":"1950", "totalprice":"60", "multiple":"1"}

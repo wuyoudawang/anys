@@ -20,6 +20,6 @@ func (i *Issuehistory) AddRow(isue *Issueinfo) error {
 	i.SetData("lotteryid", isue.GetInt64("lotteryid"))
 	i.SetData("code", isue.GetString("code"))
 	i.SetData("issue", isue.GetString("issue"))
-	i.SetData("belongdate", isue.GetDate("belongdate", "2006-01-02"))
+	i.SetData("belongdate", isue.GetString("belongdate"))
 	return i.Save()
 }

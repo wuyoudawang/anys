@@ -54,16 +54,31 @@ func (w *Worker) Run() {
 			}
 		}
 
+		isJobTime := false
+		if job.jobType&JobTicker > 0 {
+			newJob, err := job.Clone()
+			if err != nil {
+				continue
+			}
+
+			newJob.Pending()
+			isJobTime = true
+		}
+
 		if err, level := job.run(); err != nil {
 			job.exception(level)
 		}
 
-		if job.jobType&extends > 0 {
+		if job.jobType&JobDown > 0 {
 			job.Extends(job.next)
 		}
 
-		if job.jobType&timer > 0 {
+		if job.jobType&JobTimer > 0 {
 			job.Pending()
+			isJobTime = true
+		}
+
+		if isJobTime {
 			continue
 		}
 
