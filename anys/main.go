@@ -47,6 +47,11 @@ func processLottery(c *config.Config, name string, interval time.Duration) {
 			continue
 		}
 
+		err := lty.Task()
+		if err != nil {
+			fmt.Println(err)
+		}
+
 		collection := p.GetLotteryProjects(lty.GetId(), issue.GetString("issue"))
 		collection.Load()
 
@@ -72,13 +77,7 @@ func processLottery(c *config.Config, name string, interval time.Duration) {
 		// 	fmt.Println(record)
 		// }
 
-		issue.SetData("code", winNum)
-		issue.SetData("statuscode", 2)
-		issue.SetData("statusfetch", 2)
-		issue.SetData("statuslocks", 2)
-		issue.SetData("statustasktoproject", 2)
-		issue.SetData("statusdeduct", 2)
-		issue.SetData("writetime", issue.Date())
+		err = lty.Persist(winNum)
 		err = issue.Save()
 		fmt.Println(err)
 
