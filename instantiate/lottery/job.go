@@ -56,6 +56,36 @@ func (ij *issueJob) Exit(job *jobs.Job) (error, int) {
 	return nil, 0
 }
 
+func (ij *issueJob) Clone() (jobs.Entity, error) {
+	return ij, nil
+}
+
 func (lj *issueJob) Exception(job *jobs.Job, status int) {
+
+}
+
+type issueErrorJob struct {
+	ltym *model.Lottery
+}
+
+func (iej *issueErrorJob) Init(job *jobs.Job) (error, int) {
+	return nil, 0
+}
+
+func (iej *issueErrorJob) Run(job *jobs.Job) (error, int) {
+	iej.ltym.ProcessIssueError()
+	return nil, 0
+}
+
+func (iej *issueErrorJob) Exit(job *jobs.Job) (error, int) {
+
+	return nil, 0
+}
+
+func (iej *issueErrorJob) Clone() (jobs.Entity, error) {
+	return iej, nil
+}
+
+func (iej *issueErrorJob) Exception(job *jobs.Job, status int) {
 
 }

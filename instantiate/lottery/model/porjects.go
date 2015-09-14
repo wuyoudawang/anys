@@ -9,6 +9,124 @@ import (
 	db "github.com/liuzhiyi/go-db"
 )
 
+const (
+	AllBetween = -1
+
+	RebateFixed = iota
+	RebateTotalFixed
+	RebateSteadyGrow
+)
+
+type RebateRule struct {
+	betweens [][]int
+	points   []float64
+	modes    []int
+	step     int
+}
+
+func (r *RebateRule) IsAll() bool {
+	return len(r.betweens) == 1 &&
+		len(r.betweens[0]) == 1 &&
+		r.betweens[0][0] == AllBetween
+}
+
+func (r *RebateRule) Add(between []int, point float64, mode int) {
+	if len(between) == 1 && between[0] == AllBetween {
+		r.betweens = make([][]int, 1)
+		r.betweens[0] = between
+		r.points[0] = point
+		r.modes[0] = mode
+		return
+	}
+
+}
+
+func (r *RebateRule) inBetween(index int, dst []int, point float64, mode int) (sub [][]int, flag int) {
+	src := r.betweens[index]
+	if len(src) == 1 {
+		if len(dst) == 1 {
+			if src[0] == dst[0] {
+				r.points[index] = point
+				r.modes[index] = mode
+				return sub, 0
+			} else {
+				return [][]int{dst}, src[0] - dst[0]
+			}
+		}
+
+		if src[0] > dst[0] && src[0] < dst[1] {
+			r.points[index] = point
+			r.modes[index] = mode
+			return [][]int{{dst[0], src[0] - r.step}, {src[0] + r.step, dst[1]}}, 0
+		} else if src[0] == dst[0] {
+			r.remove(index)
+			return [][]int{dst}, 1
+		} else if src[0] == dst[1] {
+			r.remove(index)
+			r.modes[index] = mode
+			return [][]int{dst}, -1
+		}
+	} else if len(src) == 2 {
+		if len(dst) == 1 {
+			if dst[0] > src[0] && dst[0] < src[1] {
+				lastPoint := r.points[index]
+				lastMode := r.modes[index]
+				r.betweens[index] = []int{src[0], dst[0]}
+				r.points[index] = point
+				r.modes[index] = mode
+				r.append([]int{dst[0] + r.step, src[1]}, index+1, lastPoint, lastMode)
+				return
+			} else if dst[0] == src[0] {
+				lastPoint := r.points[index]
+				lastMode := r.modes[index]
+				r.betweens[index] = []int{dst[0]}
+				r.points[index] = point
+				r.modes[index] = mode
+				r.append([]int{src[0] + r.step, src[1]}, index+1, lastPoint, lastMode)
+				return
+			} else if dst[0] == src[1] {
+				r.betweens[index] = []int{src[0], src[1] - r.step}
+				r.append([]int{dst[0]}, index+1, point, mode)
+				return
+			}
+
+		}
+
+		// var subst []int
+		// if dst[0] =
+	}
+
+	return
+}
+
+func (r *RebateRule) remove(index int) {
+	for i := index; i < len(r.betweens); i-- {
+		r.betweens[i] = r.betweens[i+1]
+		r.points[i] = r.points[i+1]
+		r.modes[i] = r.modes[i+1]
+	}
+
+	r.betweens = r.betweens[0 : len(r.betweens)-1]
+	r.points = r.points[0 : len(r.points)-1]
+	r.modes = r.modes[0 : len(r.modes)-1]
+}
+
+func (r *RebateRule) append(between []int, index int, point float64, mode int) {
+	r.betweens = append(r.betweens, between)
+	r.points = append(r.points, point)
+	r.modes = append(r.modes, mode)
+
+	for i := len(r.betweens) - 2; i >= index; i-- {
+		r.betweens[i+1] = r.betweens[i]
+		r.points[i+1] = r.points[i]
+		r.modes[i+1] = r.modes[i]
+	}
+
+	r.betweens[index] = between
+	r.points[index] = point
+	r.modes[index] = mode
+}
+
 type Projects struct {
 	db.Item
 }
@@ -139,6 +257,10 @@ func (p *Projects) GetUserPoint(userid int) float64 {
 	return 0
 }
 
+func (p *Projects) CustomRebate(rule string) {
+
+}
+
 func (p *Projects) Rebate() error {
 	var (
 		point float64
@@ -266,12 +388,9 @@ func (p *Projects) Cancel() error {
 		return err
 	}
 
-	if p.GetInt("isgetprize") == 1 {
-
-		_, err = p.CreateOrder(OrderCancelReward, p.GetFloat64("bonus"))
-		if err != nil {
-			return err
-		}
+	err = p.CancelReward()
+	if err != nil {
+		return err
 	}
 
 	err = p.CancelRebate()
@@ -300,6 +419,18 @@ func (p *Projects) CreateOrder(ordertype int, amount float64) (*Orders, error) {
 	err := order.Create()
 
 	return order, err
+}
+
+func (p *Projects) CancelReward() error {
+	if p.GetInt("isgetprize") == 1 {
+
+		_, err := p.CreateOrder(OrderCancelReward, p.GetFloat64("bonus"))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (p *Projects) CancelRebate() error {

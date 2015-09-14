@@ -158,7 +158,10 @@ func (l *Lottery) Dispatch(p *model.Projects) error {
 
 func (l *Lottery) Clone() (*Lottery, error) {
 	lty := &Lottery{}
-
+	lty.id = l.id
+	lty.name = l.name
+	lty.count = l.count
+	lty.hedging = l.hedging
 	lty.cvt = l.cvt
 	lty.t = l.t.Clone(lty)
 	lty.methods = l.methods
@@ -205,7 +208,7 @@ func (l *Lottery) GetRecords(key int) (set []*record) {
 func (l *Lottery) Reset() {
 	l.gross = 0
 	l.maxReward = 0
-	l.nums = []string{}
+	l.nums = l.nums[:0]
 	l.curIssue = nil
 	l.t.reset()
 }
@@ -299,4 +302,5 @@ func (l *Lottery) Process() {
 	}
 
 	l.SendReward(key)
+	l.curIssue.Statistic()
 }

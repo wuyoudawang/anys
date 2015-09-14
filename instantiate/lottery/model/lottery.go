@@ -152,3 +152,14 @@ func (l *Lottery) AutoClearIssues() {
 		item.Delete()
 	}
 }
+
+func (l *Lottery) GetLatelyIssueerrors() []*Issueerror {
+	return NewIssueerror().GetLately(l.GetInt64("lotteryid"))
+}
+
+func (l *Lottery) ProcessIssueError() {
+	set := l.GetLatelyIssueerrors()
+	for _, isee := range set {
+		isee.Process()
+	}
+}
