@@ -10,7 +10,7 @@ type Usertree struct {
 
 func NewUsertree() *Usertree {
 	u := new(Usertree)
-	u.Init("usertree", "orderid")
+	u.Init("usertree", "userid")
 
 	return u
 }

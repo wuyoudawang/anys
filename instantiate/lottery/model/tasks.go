@@ -51,7 +51,7 @@ func (t *Tasks) AutoOrderBet() error {
 
 	if finishedcount >= issuecount || balance < price {
 		return t.Finish()
-	} else {
+	} else if projectcount-cancelcount < issuecount {
 
 		//插入projects
 		project, err := t.CreatProject(multiple, singleprice, price)
@@ -69,9 +69,15 @@ func (t *Tasks) AutoOrderBet() error {
 		t.SetData("projectcount", projectcount+1)
 		return t.Save()
 	}
+
+	return nil
 }
 
 func (t *Tasks) CreatProject(multiple, singleprice, price float64) (*Projects, error) {
+	if t.GetData("issue") == nil {
+		return nil, fmt.Errorf("issue number is empty,you must set it")
+	}
+
 	project := NewProjects()
 	project.SetTransaction(t.GetTransaction())
 	project.SetData("userid", t.GetInt64("userid"))
@@ -106,7 +112,7 @@ func (t *Tasks) CreateOrder(ordertype int, projectId int64) (*Orders, error) {
 	order.SetData("projectid", projectId)
 	order.SetData("packageid", 0)
 	order.SetData("taskid", t.GetInt64("taskid"))
-	order.SetData("formuserid", t.GetInt64("userid"))
+	order.SetData("fromuserid", t.GetInt64("userid"))
 	order.SetData("ordertypeid", ordertype)
 	order.SetData("title", order.TypeString())
 	order.SetData("amount", t.GetFloat64("totalprice"))
@@ -162,7 +168,7 @@ func (t *Tasks) Flush(p *Projects) error {
 func (t *Tasks) GetModes() string {
 	if t.GetData("modes") == nil {
 		usertree := NewUsertree()
-		usertree.SetData("userid", t.GetData("userid"))
+		usertree.SetData("userid", t.GetInt64("userid"))
 		usertree.Row()
 		t.SetData("modes", usertree.GetData("modes"))
 	}
@@ -173,7 +179,7 @@ func (t *Tasks) GetModes() string {
 func (t *Tasks) GetMaxMutilple() float64 {
 	if t.GetData("maxmult") == nil {
 		method := NewMethod()
-		method.SetData("methodid", t.GetData("methodid"))
+		method.SetData("methodid", t.GetInt64("methodid"))
 		method.Row()
 		t.SetData("maxmult", method.GetData("bei"))
 	}
@@ -184,7 +190,7 @@ func (t *Tasks) GetMaxMutilple() float64 {
 func (t *Tasks) GetBalance() float64 {
 	if t.GetData("availablebalance") == nil {
 		userfund := NewMethod()
-		userfund.SetData("userid", t.GetData("userid"))
+		userfund.SetData("userid", t.GetInt64("userid"))
 		userfund.Row()
 		t.SetData("availablebalance", userfund.GetData("availablebalance"))
 	}
@@ -195,7 +201,8 @@ func (t *Tasks) GetBalance() float64 {
 func (t *Tasks) GetUserTree() string {
 	if t.GetData("parenttree") == nil {
 		usertree := NewUsertree()
-		usertree.SetData("userid", t.GetData("userid"))
+		fmt.Println(t.GetInt64("userid"))
+		usertree.SetData("userid", t.GetInt64("userid"))
 		usertree.Row()
 		t.SetData("parenttree", usertree.GetData("parenttree"))
 	}
@@ -206,4 +213,25 @@ func (t *Tasks) GetUserTree() string {
 func (t *Tasks) Finish() error {
 	t.SetData("status", 2)
 	return t.Save()
+}
+
+func (t *Tasks) cancelProjects() {
+	// // 取消投注
+	// sql := "update projects set iscancel=1, note = '追号已完成，系统自动撤销本单' where isgetprize=0 and taskid=" + p.TaskId
+	// models.QuerySql(sql)
+
+	// // 返款
+	// sql = "select totalprice, projectid from projects where iscancel=1 and isgetprize=0 and taskid=" + p.TaskId
+	// rows := models.GetRows(sql)
+	// for _, row := range rows {
+	// 	//为了防止重复插单，这里多做一步判断
+	// 	chk := getOrderByProjectid(row["projectid"], "9")
+	// 	if len(chk) == 0 {
+	// 		total, _ := strconv.ParseFloat(row["totalprice"], 10)
+	// 		newp := Project{}
+	// 		newp = *p
+	// 		newp.Id = row["projectid"]
+	// 		insertOrder(&newp, total, p.UserId, "9")
+	// 	}
+	// }
 }

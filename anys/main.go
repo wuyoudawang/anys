@@ -42,7 +42,7 @@ func processLottery(c *config.Config, name string, interval time.Duration) {
 
 	for range ticker.C {
 
-		issue := model.GetCurrentIssue(lty.GetId())
+		issue := lty.GetCurrentIssue()
 		if issue == nil {
 			continue
 		}
@@ -78,7 +78,6 @@ func processLottery(c *config.Config, name string, interval time.Duration) {
 		// }
 
 		err = lty.Persist(winNum)
-		err = issue.Save()
 		fmt.Println(err)
 
 		lty.Reset()

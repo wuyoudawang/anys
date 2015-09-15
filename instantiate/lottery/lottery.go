@@ -272,6 +272,14 @@ func (l *Lottery) SendReward(key int) error {
 	return l.curIssue.FinishSendReward()
 }
 
+func (l *Lottery) GetCurrentIssue() *model.Issueinfo {
+	if l.curIssue == nil {
+		l.curIssue = model.GetCurrentIssue(l.id)
+	}
+
+	return l.curIssue
+}
+
 func (l *Lottery) Process() {
 	var err error
 

@@ -51,7 +51,7 @@ func (o *Orders) Create() error {
 	}
 
 	userfund := NewUserfund()
-	userfund.SetData("userid", o.GetData("userid"))
+	userfund.SetData("userid", o.GetInt64("fromuserid"))
 	userfund.SetTransaction(transaction)
 	switch o.GetInt("ordertypeid") {
 	case OrderJoin:

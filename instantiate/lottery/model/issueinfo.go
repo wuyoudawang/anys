@@ -24,7 +24,7 @@ func GetCurrentIssue(lotteryId int64) *Issueinfo {
 	ise := NewIssueinfo()
 	collection := ise.GetCollection()
 	collection.AddFieldToSelect(
-		"issueid, issue, belongdate",
+		"issueid, issue, belongdate, lotteryid",
 		collection.GetMainAlias(),
 	)
 
@@ -75,6 +75,7 @@ func (i *Issueinfo) GetCurrentTasks() []*Tasks {
 	for _, item := range collection.GetItems() {
 		tsk := &Tasks{}
 		tsk.Item = *item
+		tsk.SetData("issue", i.GetString("issue"))
 		tsks = append(tsks, tsk)
 	}
 

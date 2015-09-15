@@ -409,7 +409,7 @@ func (p *Projects) CreateOrder(ordertype int, amount float64) (*Orders, error) {
 	order.SetData("projectid", p.GetId())
 	order.SetData("packageid", p.GetInt64("packageid"))
 	order.SetData("taskid", p.GetInt64("taskid"))
-	order.SetData("formuserid", p.GetInt64("userid"))
+	order.SetData("fromuserid", p.GetInt64("userid"))
 	order.SetData("ordertypeid", ordertype)
 	order.SetData("title", order.TypeString())
 	order.SetData("amount", amount)
