@@ -1290,15 +1290,77 @@ func (m *Method) CallLastTwoSumCom(bet string, p *model.Projects) (error, int) {
 }
 
 func (m *Method) mixThreeNum(bet string, p *model.Projects, s int) (error, int) {
-	key, err := m.lty.cvt.integer(bet)
-	if err != nil {
-		return err, cancle
+	set := m.splitNum(bet)
+	if len(set) == 0 {
+		return errBetFormat, cancle
 	}
 
-	key = m.lty.cvt.shiftLeft(key, s)
-	id := p.GetInt64("projectid")
-	if m.checkPunts(id, key) {
-		m.addRecord(key, id, m.getReward(p, 1))
+	for _, item := range set {
+		terms := m.lty.cvt.terms
+		if len(item) != m.lty.cvt.terms*3 {
+			fmt.Println("不合法")
+			// log
+			continue
+		}
+
+		one := item[0:terms]
+		two := item[terms*1 : terms*2]
+		three := item[terms*2 : terms*3]
+		if one != two && one != three && two != three {
+			perm := m.lty.cvt.getPermutation([]string{one, two, three}, 3)
+
+			for _, pi := range perm {
+				key, err := m.lty.cvt.integer(strings.Join(pi, ""))
+				if err != nil {
+					fmt.Println(err)
+					// log
+					continue
+				}
+
+				key = m.lty.cvt.shiftLeft(key, s)
+				id := p.GetInt64("projectid")
+				if m.checkPunts(id, key) {
+					m.addRecord(key, id, m.getReward(p, 1))
+				}
+			}
+
+		} else { //组三
+			var selected []string
+			var repeat string
+			if one == two {
+				selected = []string{one, three}
+				repeat = one
+			} else if two == three {
+				selected = []string{one, three}
+				repeat = two
+			} else if one == three {
+				selected = []string{one, two}
+				repeat = one
+			}
+
+			perm := m.lty.cvt.getPermutation(selected, 2)
+
+			for _, pi := range perm {
+				com := m.lty.cvt.repeatNum(pi, repeat, 1)
+				for _, c := range com {
+					key, err := m.lty.cvt.integer(strings.Join(c, ""))
+					if err != nil {
+						fmt.Println(err)
+						// log
+						continue
+					}
+
+					key = m.lty.cvt.shiftLeft(key, s)
+					id := p.GetInt64("projectid")
+					if m.checkPunts(id, key) {
+						m.rate /= 2
+						m.addRecord(key, id, m.getReward(p, 1))
+						m.rate *= 2
+					}
+				}
+			}
+		}
+
 	}
 
 	return nil, success
