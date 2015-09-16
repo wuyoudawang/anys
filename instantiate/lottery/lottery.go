@@ -210,6 +210,7 @@ func (l *Lottery) Reset() {
 	l.maxReward = 0
 	l.nums = l.nums[:0]
 	l.curIssue = nil
+	l.t = l.t.Clone(l)
 	l.t.reset()
 }
 
