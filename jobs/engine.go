@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 const (
@@ -19,26 +20,20 @@ type Server interface {
 }
 
 type Stoper struct {
-	isStop bool
-	mt     sync.Mutex
+	isStop uint32
 }
 
 func (s *Stoper) Stop() {
-	s.mt.Lock()
-	defer s.mt.Unlock()
-	s.isStop = true
+	atomic.StoreUint32(&s.isStop, 1)
 }
 
 func (s *Stoper) Run() {
-	s.mt.Lock()
-	defer s.mt.Unlock()
-	s.isStop = false
+	atomic.StoreUint32(&s.isStop, 0)
 }
 
 func (s *Stoper) IsStop() bool {
-	s.mt.Lock()
-	defer s.mt.Unlock()
-	return s.isStop
+	val := atomic.LoadUint32(&s.isStop)
+	return val > 0
 }
 
 type Restroom struct {

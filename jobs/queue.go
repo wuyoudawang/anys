@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"sync"
+	"sync/atomic"
 )
 
 const (
@@ -15,8 +16,7 @@ type CycleQueue struct {
 	w       int
 	lastJob *Job
 	m       sync.Mutex
-	locked  bool
-	mLock   sync.Mutex
+	locked  int32
 }
 
 func NewCycleQueue() *CycleQueue {
@@ -91,17 +91,17 @@ func (q *CycleQueue) unlock() {
 }
 
 func (q *CycleQueue) setLocked(val bool) {
-	q.mLock.Lock()
-	defer q.mLock.Unlock()
-
-	q.locked = val
+	if val {
+		atomic.StoreInt32(&q.locked, 1)
+	} else {
+		atomic.StoreInt32(&q.locked, 0)
+	}
 }
 
 func (q *CycleQueue) isLocked() bool {
-	q.mLock.Lock()
-	defer q.mLock.Unlock()
+	val := atomic.LoadInt32(&q.locked)
 
-	return q.locked
+	return val > 0
 }
 
 func (q *CycleQueue) Pop() *Job {

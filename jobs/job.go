@@ -203,9 +203,19 @@ func (j *Job) Ticker(val time.Duration) *Job {
 	return j
 }
 
-func (j *Job) EveryTime(val time.Duration) *Job {
+func (j *Job) Until(future int64) error {
+	now := time.Now().UnixNano()
+	if future <= now {
+		return fmt.Errorf("the future time must greater than now")
+	}
+
+	j.timeout = future
+	return nil
+}
+
+func (j *Job) EveryTime(unit time.Duration, start string) *Job {
 	j.jobType |= JobEveryTime
-	j.interval = val
+	j.interval = unit
 
 	return j
 }
@@ -241,9 +251,9 @@ func (j *Job) Add(root **Job) *Job {
 	for *node != nil {
 		parent = *node
 		if j.key < parent.key {
-			*node = parent.left
+			node = &(parent.left)
 		} else if j.key > parent.key {
-			*node = parent.right
+			node = &(parent.right)
 		} else {
 			return j
 		}
@@ -252,17 +262,18 @@ func (j *Job) Add(root **Job) *Job {
 	j.parent = parent
 
 	for *node != *root && parent.isBlack() {
-		if parent == parent.parent.left {
+		if parent.parent != nil && parent == parent.parent.left {
 			if parent.parent.right.isRed() {
 				parent.parent.red()
 				parent.parent.right.black()
 				parent.black()
-				*node = parent.parent
+				node = &(parent.parent)
 				parent = (*node).parent
 			} else {
 				if *node == parent.right {
+					node = &((*node).parent)
+					parent = (*node).parent
 					(*node).parent.leftRotate(root)
-					*node = (*node).parent
 				}
 
 				(*node).parent.black()
@@ -270,20 +281,29 @@ func (j *Job) Add(root **Job) *Job {
 				(*node).parent.parent.rightRotate(root)
 			}
 		} else {
-			if parent.parent.left.isRed() {
+			if parent.parent != nil && parent.parent.left.isRed() {
 				parent.parent.red()
 				parent.parent.right.black()
 				parent.black()
-				(*node) = parent.parent
+				node = &(parent.parent)
 				parent = (*node).parent
 			} else {
 				if *node == parent.right {
-					(*node).parent.leftRotate(root)
-					*node = (*node).parent
+					node = &((*node).parent)
+					if parent.parent == nil {
+						parent = nil
+						continue
+					} else {
+						parent = (*node).parent
+						(*node).parent.leftRotate(root)
+					}
+
 				}
 
+				if parent.parent != nil {
+					(*node).parent.parent.red()
+				}
 				(*node).parent.black()
-				(*node).parent.parent.red()
 				(*node).parent.rightRotate(root)
 			}
 		}

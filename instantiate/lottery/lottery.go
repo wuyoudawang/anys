@@ -310,6 +310,10 @@ func (l *Lottery) Process() {
 		return
 	}
 
-	l.SendReward(key)
+	err = l.SendReward(key)
+	if err != nil {
+		log.Error("sending the reward has an error '%s'", err.Error())
+	}
+
 	l.curIssue.Statistic()
 }

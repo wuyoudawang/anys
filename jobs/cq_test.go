@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"anys/pkg/utils"
 	"fmt"
 	"testing"
 	"time"
@@ -48,4 +49,22 @@ func TestHeap(t *testing.T) {
 	fmt.Println(heap.minHeapPop())
 	fmt.Println(heap.h)
 
+}
+
+func TestJobStore(t *testing.T) {
+	container := NewContainer()
+	container.Register(createTempJob("test"))
+	container.Register(createTempJob("test1"))
+	container.Register(createTempJob("test2"))
+	container.Register(createTempJob("test3"))
+	fmt.Println(utils.Key("test"), utils.Key("test1"), utils.Key("test2"))
+	fmt.Println(container.Find("test1"))
+	fmt.Println(container.Find("test3"))
+}
+
+func createTempJob(name string) *Job {
+	return &Job{
+		name: name,
+		key:  utils.Key(name),
+	}
 }
