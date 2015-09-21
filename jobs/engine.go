@@ -64,6 +64,7 @@ func (r *Restroom) Push(index int) {
 type Engine struct {
 	c             *Container
 	workers       []*Worker
+	serversLock   sync.RWMutex
 	servers       map[string]Server
 	restroom      *Restroom
 	list          *Worker
@@ -279,12 +280,15 @@ func (e *Engine) Serve() {
 	e.start()
 }
 
-func (e Engine) RegisterServer(server Server, name string) error {
+func (e *Engine) RegisterServer(server Server, name string) error {
 	_, exists := e.servers[name]
 	if exists {
 		return fmt.Errorf("can't rewrite the same server:'%s'", name)
 	}
+
+	e.serversLock.Lock()
 	e.servers[name] = server
+	e.serversLock.Unlock()
 	return nil
 }
 

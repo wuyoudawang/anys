@@ -312,6 +312,11 @@ func (p *Projects) Rebate() error {
 	lastParentId := 0
 	maxPoint := p.GetCurrentUserMaxPoint()
 	for _, idStr := range strings.Split(p.GetUserTree(), ",") {
+		idStr = strings.TrimSpace(idStr)
+		if idStr == "" {
+			continue
+		}
+
 		parentId, err := strconv.Atoi(idStr)
 		if err != nil {
 			if p.GetTransaction() != nil {

@@ -45,6 +45,16 @@ func TestPgcode(t *testing.T) {
 	fmt.Println(pgcode)
 }
 
+func TestSubtotal(t *testing.T) {
+	initConfig()
+
+	ise := NewIssueinfo()
+	ise.SetData("issue", "20150917599")
+	ise.SetData("lotteryid", 17)
+	fmt.Println(ise.GetSubTotal(false, 1))
+	ise.Statistic()
+}
+
 func initConfig() {
 	c.LoadModule("db")
 	c.SortModules()

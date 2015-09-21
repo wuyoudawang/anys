@@ -5,6 +5,7 @@ import (
 
 	"anys/config"
 	"anys/instantiate/lottery/model"
+	"anys/jobs"
 	"anys/log"
 	"anys/pkg/utils"
 	"github.com/liuzhiyi/go-db"
@@ -84,6 +85,21 @@ func initModule(c *config.Config) error {
 	}
 
 	return nil
+}
+
+func installJobs(c *config.Config) {
+	eng := jobs.GetConf(c).GetEngine()
+
+	lotteries := GetConf(c).GetAllLottery()
+	for _, lty := range lotteries {
+		eng.Register(eng.NewJob(&lotteryJob{lty}, fmt.Sprintf("%s-DRAW-JOB", lty.name)))
+
+		ltyObj := &model.Lottery{}
+		ltyObj.Item = db.F.GetItemSingleton(lty.name)
+		eng.Register(eng.NewJob(&issueJob{ltyObj}, fmt.Sprintf("%s-ISSUE-JOB", lty.name)))
+
+		eng.Register(eng.NewJob(&issueErrorJob{ltyObj}, fmt.Sprintf("%s-ISSUEERROR-JOB", lty.name)))
+	}
 }
 
 func GetConf(c *config.Config) *lotteryConf {

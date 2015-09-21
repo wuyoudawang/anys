@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"time"
 
 	db "github.com/liuzhiyi/go-db"
@@ -189,9 +190,9 @@ sum(IF(ordertypeid='4',amount, 0)) rebate_total,
 sum(IF(ordertypeid='9' or ordertypeid='7',amount, 0)) game_cancel_total,
 sum(IF(ordertypeid='11',amount, 0)) rebate_cancel_total,
 sum(IF(ordertypeid='12',amount, 0)) reward_cancel_total
-FROM orders as o LEFT JOIN projects as p
-where o.issue = ? and o.letteryid=? and o.istester = ? and p.modes = ?
-GROUP BY issue`
+FROM orders as o LEFT JOIN projects as p ON o.projectid = p.projectid
+where p.issue = ? and o.lotteryid=? and o.istester = ? and p.modes = ?
+GROUP BY p.issue`
 
 	testFlag := "0"
 	if istester {
@@ -230,7 +231,7 @@ GROUP BY issue`
 	return data
 }
 
-func (i *Issueinfo) statisticInternel(mode int) {
+func (i *Issueinfo) statisticInternel(mode int) error {
 	data := i.GetSubTotal(false, mode)
 	testdata := i.GetSubTotal(true, mode)
 
@@ -247,6 +248,7 @@ func (i *Issueinfo) statisticInternel(mode int) {
 	singlesale.SetData("modes", mode)
 	singlesale.SetData("joindate", singlesale.Date())
 	singlesale.SetData("issue", i.GetData("issue"))
+	return singlesale.Save()
 }
 
 func (i *Issueinfo) Statistic() {
@@ -254,7 +256,13 @@ func (i *Issueinfo) Statistic() {
 	i.SetTransaction(transaction)
 	defer transaction.Commit()
 
-	i.statisticInternel(1)
-	i.statisticInternel(2)
-	i.statisticInternel(3)
+	if err := i.statisticInternel(1); err != nil {
+		fmt.Println(err)
+	}
+	if err := i.statisticInternel(2); err != nil {
+		fmt.Println(err)
+	}
+	if err := i.statisticInternel(3); err != nil {
+		fmt.Println(err)
+	}
 }

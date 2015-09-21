@@ -971,7 +971,7 @@ func (m *Method) CallPrevThreeComNum(bet string, p *model.Projects) (error, int)
 }
 
 func (m *Method) CallMidThreeComNum(bet string, p *model.Projects) (error, int) {
-	return m.threeComNum(bet, p, m.lty.getLast(3))
+	return m.threeComNum(bet, p, m.lty.getMid(3))
 }
 
 func (m *Method) CallLastThreeComNum(bet string, p *model.Projects) (error, int) {

@@ -16,6 +16,11 @@ func Install(c *config.Config) {
 type jobsConf struct {
 	goroutines     int
 	cycleQueueSize int
+	eng            *Engine
+}
+
+func (jc *jobsConf) GetEngine() *Engine {
+	return jc.eng
 }
 
 var (

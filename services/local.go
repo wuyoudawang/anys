@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"anys/jobs"
 )
@@ -13,6 +14,21 @@ type LocalServer struct {
 	eng     *jobs.Engine
 	stoper  jobs.Stoper
 	handler func(sig os.Signal) error
+}
+
+func NewDefaultLocalServer(eng) *LocalServer {
+	NewLocalServer(eng, handlerSig, os.Interrupt, syscall.SIGHUP)
+}
+
+func handlerSig(sig os.Signal) error {
+	switch sig {
+	case syscall.SIGHUP:
+	case syscall.SIGKILL:
+	case syscall.SIGQUIT:
+	case os.Interrupt:
+	}
+
+	return nil
 }
 
 func NewLocalServer(eng *jobs.Engine, handler func(sig os.Signal) error, sig ...os.Signal) *LocalServer {

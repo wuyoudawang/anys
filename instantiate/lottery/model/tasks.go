@@ -60,7 +60,7 @@ func (t *Tasks) AutoOrderBet() error {
 		}
 
 		//插入orders
-		_, err = t.CreateOrder(OrderTask, project.GetInt64("projectid"))
+		_, err = t.CreateOrder(OrderTask, project.GetInt64("projectid"), price)
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func (t *Tasks) CreatProject(multiple, singleprice, price float64) (*Projects, e
 	return project, err
 }
 
-func (t *Tasks) CreateOrder(ordertype int, projectId int64) (*Orders, error) {
+func (t *Tasks) CreateOrder(ordertype int, projectId int64, price float64) (*Orders, error) {
 	order := NewOrders()
 	order.SetTransaction(t.GetTransaction())
 	order.SetData("lotteryid", t.GetInt64("lotteryid"))
@@ -115,7 +115,7 @@ func (t *Tasks) CreateOrder(ordertype int, projectId int64) (*Orders, error) {
 	order.SetData("fromuserid", t.GetInt64("userid"))
 	order.SetData("ordertypeid", ordertype)
 	order.SetData("title", order.TypeString())
-	order.SetData("amount", t.GetFloat64("totalprice"))
+	order.SetData("amount", price)
 	order.SetData("modes", t.GetString("modes"))
 	order.SetData("pgcfg", t.GetString("omodel"))
 	order.SetData("parenttree", t.GetUserTree())

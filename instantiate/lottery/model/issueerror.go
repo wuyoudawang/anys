@@ -47,6 +47,7 @@ func (i *Issueerror) GetLately(lotteryId int64) (set []*Issueerror) {
 
 func (i *Issueerror) Process() error {
 	reopen := false
+	var firstErr error
 
 	if i.GetInt("errortype") == 2 {
 		reopen = true
@@ -73,13 +74,18 @@ func (i *Issueerror) Process() error {
 
 		for _, item := range set {
 			err := item.Cancel()
-			if err != nil {
-				return err
+			if firstErr == nil && err != nil {
+				firstErr = err
 			}
 		}
 	}
 
-	return i.Finish()
+	err := i.Finish()
+	if firstErr == nil && err != nil {
+		firstErr = err
+	}
+
+	return firstErr
 }
 
 func (i *Issueerror) GetProjects() []*Projects {

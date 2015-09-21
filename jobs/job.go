@@ -245,7 +245,7 @@ func (j *Job) GetTimeout() int64 {
 	}
 }
 
-func (j *Job) Add(root **Job) *Job {
+func (j *Job) add(root **Job) *Job {
 	parent := *root
 	node := root
 	for *node != nil {
@@ -594,6 +594,7 @@ func (j *Job) StatusString() string {
 
 type Container struct {
 	root     *Job
+	regLock  sync.RWMutex
 	posted   *minHeap
 	timers   *minHeap
 	timersMt sync.Mutex
@@ -627,16 +628,15 @@ func NewContainer() *Container {
 }
 
 func (c *Container) Register(job *Job) *Container {
-
-	job.Add(&c.root)
+	c.regLock.Lock()
+	job.add(&c.root)
+	c.regLock.Unlock()
 	job.closeStatus(mask)
 
 	return c
 }
 
 func (c *Container) Pending(job *Job) error {
-	c.timersMt.Lock()
-	defer c.timersMt.Unlock()
 
 	job.openStatus(StatusPending)
 	timeout := job.GetTimeout()
@@ -645,6 +645,8 @@ func (c *Container) Pending(job *Job) error {
 			job.eng.Active(job)
 		} else {
 			job.timeout = timeout
+			c.timersMt.Lock()
+			defer c.timersMt.Unlock()
 			c.timers.minHeapPush(job)
 			return nil
 		}
@@ -654,6 +656,8 @@ func (c *Container) Pending(job *Job) error {
 }
 
 func (c *Container) Find(name string) *Job {
+	c.regLock.RLock()
+	defer c.regLock.RUnlock()
 	key := utils.Key(name)
 	return c.root.Find(key)
 }
@@ -698,10 +702,10 @@ func (c *Container) MinTimeout() int64 {
 }
 
 func (c *Container) Active(job *Job) {
-	c.timersMt.Lock()
-	defer c.timersMt.Unlock()
 
 	if job.heapIndex >= 0 {
+		c.timersMt.Lock()
+		defer c.timersMt.Unlock()
 		c.timers.minHeapRemove(job.heapIndex)
 	}
 	job.eng.AddJob(job)

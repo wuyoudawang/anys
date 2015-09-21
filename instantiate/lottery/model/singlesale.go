@@ -10,6 +10,6 @@ type Singlesale struct {
 
 func NewSinglesale() *Singlesale {
 	s := new(Singlesale)
-	s.Init("tasks", "taskid")
+	s.Init("singlesale", "id")
 	return s
 }
