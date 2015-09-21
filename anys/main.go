@@ -83,6 +83,9 @@ func processLottery(c *config.Config, name string, interval time.Duration) {
 		lty.SendReward(key)
 		issue.Statistic()
 
+		ltyObj := lty.GetLotteryModel()
+		ltyObj.ProcessIssueError()
+
 		lty.Reset()
 	}
 }

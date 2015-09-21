@@ -8,7 +8,6 @@ import (
 	"anys/jobs"
 	"anys/log"
 	"anys/pkg/utils"
-	"github.com/liuzhiyi/go-db"
 )
 
 const (
@@ -69,19 +68,14 @@ func initConf(c *config.Config) error {
 
 func initModule(c *config.Config) error {
 	conf := GetConf(c)
-	ltyObj := model.NewLottery()
+	for name, lty := range conf.lotteries {
+		err := lty.load(name)
 
-	for _, lty := range conf.lotteries {
-		itemObj := ltyObj.GetLotteryIdByName(lty.name)
-
-		if itemObj == nil {
+		if err != nil {
 			log.Warning("invaild lottery '%s'", lty.name)
 			delete(conf.lotteries, lty.name)
 			continue
 		}
-
-		db.F.RegisterItem(itemObj)
-		lty.setId(itemObj.GetInt64("lotteryid"))
 	}
 
 	return nil
@@ -93,12 +87,8 @@ func installJobs(c *config.Config) {
 	lotteries := GetConf(c).GetAllLottery()
 	for _, lty := range lotteries {
 		eng.Register(eng.NewJob(&lotteryJob{lty}, fmt.Sprintf("%s-DRAW-JOB", lty.name)))
-
-		ltyObj := &model.Lottery{}
-		ltyObj.Item = db.F.GetItemSingleton(lty.name)
-		eng.Register(eng.NewJob(&issueJob{ltyObj}, fmt.Sprintf("%s-ISSUE-JOB", lty.name)))
-
-		eng.Register(eng.NewJob(&issueErrorJob{ltyObj}, fmt.Sprintf("%s-ISSUEERROR-JOB", lty.name)))
+		eng.Register(eng.NewJob(&issueJob{lty.GetLotteryModel()}, fmt.Sprintf("%s-ISSUE-JOB", lty.name)))
+		eng.Register(eng.NewJob(&issueErrorJob{lty.GetLotteryModel()}, fmt.Sprintf("%s-ISSUEERROR-JOB", lty.name)))
 	}
 }
 
@@ -177,7 +167,7 @@ func createMethod(c *config.Config) error {
 	methodName := utils.UcWords(args[1])
 	jsonStr := args[2]
 	l := conf.lotteries[conf.currName]
-	method, err := NewMethod(l, jsonStr)
+	method, err := NewMethod(jsonStr)
 	if err != nil {
 		return err
 	}
@@ -187,7 +177,11 @@ func createMethod(c *config.Config) error {
 		return fmt.Errorf("can't find this method '%s'", methodName)
 	}
 
-	l.Register(methodName, fn.(func(string, *model.Projects) (error, int)))
+	// callFn := func(bet string, p *model.Projects) (error, int) {
+	// 	assertFn := fn.(func(*Lottery, string, *model.Projects) (error, int))
+	// 	return assertFn(l, bet, p)
+	// }
+	l.Register(methodName, fn.(func(*Lottery, string, *model.Projects) (error, int)))
 
 	return nil
 }

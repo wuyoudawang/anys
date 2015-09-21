@@ -43,3 +43,12 @@ func (c *Config) Include(name string) error {
 	}
 	return nil
 }
+
+type caller struct {
+	args    []string
+	handler func(c *Config) error
+}
+
+func (c *Config) newCaller(commadName string) {
+
+}

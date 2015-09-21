@@ -8,11 +8,14 @@ import (
 )
 
 type Config struct {
-	file    *os.File
-	buf     *bufio.Reader
-	args    []string
-	ctx     []interface{}
-	modules []*Module
+	file       *os.File
+	buf        *bufio.Reader
+	args       []string
+	ctx        []interface{}
+	commands   []*Command
+	delayCall  []caller
+	modules    []*Module
+	gvarstring map[string]string
 }
 
 func (c *Config) GetConf(m *Module) interface{} {
@@ -22,6 +25,10 @@ func (c *Config) GetConf(m *Module) interface{} {
 	}
 
 	return ctx[m.index]
+}
+
+func (c *Config) GlobalCommad() {
+
 }
 
 func (c *Config) SetConf(m *Module, conf interface{}) {

@@ -11,10 +11,10 @@ import (
 	"anys/pkg/utils"
 )
 
-type methodFn func(string, *model.Projects) (error, int)
+type methodFn func(*Lottery, string, *model.Projects) (error, int)
 
 type Lottery struct {
-	id        int64
+	ltym      *model.Lottery
 	name      string
 	gross     float64
 	hedging   float64
@@ -66,8 +66,20 @@ func (l *Lottery) NewNumber(str string) (*Number, error) {
 	return n, nil
 }
 
-func (l *Lottery) setId(id int64) {
-	l.id = id
+func (l *Lottery) load(name string) error {
+	ltym := model.NewLottery()
+	item := ltym.GetLotteryIdByName(name)
+	if item == nil {
+		return fmt.Errorf("this lottery is not existed")
+	}
+	ltym.Item = *item
+	l.ltym = ltym
+
+	return nil
+}
+
+func (l *Lottery) GetLotteryModel() *model.Lottery {
+	return l.ltym
 }
 
 func (l *Lottery) getLast(n int) int {
@@ -79,7 +91,7 @@ func (l *Lottery) getMid(n int) int {
 }
 
 func (l *Lottery) GetId() int64 {
-	return l.id
+	return l.ltym.GetInt64("lotteryid")
 }
 
 func (l *Lottery) addGross(v float64) {
@@ -136,7 +148,7 @@ func (l *Lottery) Dispatch(p *model.Projects) error {
 
 	for _, bet := range bets {
 
-		err, flag := fn(bet, p)
+		err, flag := fn(l, bet, p)
 		if err != nil {
 			log.Warning("project(id '%d', funcname '%s', bet '%s') has an error '%s'",
 				p.GetId(), name, bet, err.Error())
@@ -158,7 +170,7 @@ func (l *Lottery) Dispatch(p *model.Projects) error {
 
 func (l *Lottery) Clone() (*Lottery, error) {
 	lty := &Lottery{}
-	lty.id = l.id
+	lty.ltym = l.ltym
 	lty.name = l.name
 	lty.count = l.count
 	lty.hedging = l.hedging
@@ -210,7 +222,6 @@ func (l *Lottery) Reset() {
 	l.maxReward = 0
 	l.nums = l.nums[:0]
 	l.curIssue = nil
-	l.t = l.t.Clone(l)
 	l.t.reset()
 }
 
@@ -275,7 +286,7 @@ func (l *Lottery) SendReward(key int) error {
 
 func (l *Lottery) GetCurrentIssue() *model.Issueinfo {
 	if l.curIssue == nil {
-		l.curIssue = model.GetCurrentIssue(l.id)
+		l.curIssue = model.GetCurrentIssue(l.ltym.GetInt64("lotteryid"))
 	}
 
 	return l.curIssue
@@ -284,7 +295,7 @@ func (l *Lottery) GetCurrentIssue() *model.Issueinfo {
 func (l *Lottery) Process() {
 	var err error
 
-	l.curIssue = model.GetCurrentIssue(l.id)
+	l.curIssue = l.GetCurrentIssue()
 	if l.curIssue == nil {
 		return
 	}

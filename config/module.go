@@ -50,6 +50,10 @@ func (c *Config) LoadModule(name string, depends ...string) {
 	c.modules = append(c.modules, m)
 }
 
+func (c *Config) SetParentModule() {
+
+}
+
 func (c *Config) SortModules() error {
 	ms := make([]*Module, len(c.modules))
 	copy(ms, c.modules)
@@ -63,7 +67,7 @@ func (c *Config) SortModules() error {
 		for i := 0; i < len(ms) && ms[i] != nil; i++ {
 
 			if len(ms[i].depends) == 0 ||
-				c.breakDepends(ms[i].depends, c.modules[:last]) {
+				c.brokenDepends(ms[i].depends, c.modules[:last]) {
 
 				ms[i].index = index
 				tmp = append(tmp, ms[i])
@@ -99,7 +103,7 @@ func (c *Config) SortModules() error {
 	return nil
 }
 
-func (c *Config) breakDepends(d, b []*Module) bool {
+func (c *Config) brokenDepends(d, b []*Module) bool {
 	n := 0
 	for _, dm := range d {
 		for _, bm := range b {
@@ -122,7 +126,7 @@ func (c *Config) InitModules() {
 }
 
 func (c *Config) ExitModules() {
-	for i := 0; i < len(c.modules); i++ {
+	for i := len(c.modules) - 1; i >= 0; i-- {
 		if c.modules[i].Exit_module != nil {
 			c.modules[i].Exit_module(c)
 		}

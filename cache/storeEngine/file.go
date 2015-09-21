@@ -13,6 +13,7 @@ import (
 const (
 	logFileName   = "LOG"
 	logFileSuffix = ".OLD"
+	lockFileName  = "LOCK"
 )
 
 type fileStoreEngine struct {
