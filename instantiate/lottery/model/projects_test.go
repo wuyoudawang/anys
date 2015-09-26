@@ -26,6 +26,12 @@ func Test_Db(t *testing.T) {
 	}
 }
 
+func TestFund(t *testing.T) {
+	uf := NewUserfund()
+	uf.Load(6585)
+	uf.AddSaleTotal(-100)
+}
+
 func TestGenerateIssue(t *testing.T) {
 	initConfig()
 

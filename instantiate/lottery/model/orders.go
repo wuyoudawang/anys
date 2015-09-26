@@ -30,6 +30,7 @@ func NewOrders() *Orders {
 }
 
 func (o *Orders) Create() error {
+	var err error
 
 	transaction := o.GetTransaction()
 	if transaction == nil {
@@ -41,35 +42,81 @@ func (o *Orders) Create() error {
 	o.SetData("times", time.Now().Format("2006-01-02 15:04:05"))
 	o.SetData("actiontime", time.Now().Format("2006-01-02 15:04:05"))
 
-	//不明字段（暂时不处理）
-	o.SetData("clientip", "127.0.0.1")
-	o.SetData("proxyip", "127.0.0.1")
+	userfund := NewUserfund()
+	userfund.SetData("userid", o.GetInt64("fromuserid"))
+	userfund.Row()
+	userfund.SetTransaction(transaction)
 
-	err := o.Save()
+	// 变更前
+	o.SetData("preavailable", userfund.GetFloat64("availablebalance"))
+
+	switch o.GetInt("ordertypeid") {
+	case OrderJoin:
+		err = userfund.AddSaleTotal(o.GetFloat64("amount"))
+		if err != nil {
+			return err
+		}
+		err = userfund.AddBalance(-o.GetFloat64("amount"))
+	case OrderGame:
+		err = userfund.AddSaleTotal(o.GetFloat64("amount"))
+		if err != nil {
+			return err
+		}
+		err = userfund.AddBalance(-o.GetFloat64("amount"))
+	case OrderTask:
+		err = userfund.AddSaleTotal(o.GetFloat64("amount"))
+		if err != nil {
+			return err
+		}
+		err = userfund.AddBalance(-o.GetFloat64("amount"))
+	case OrderRebate:
+		err = userfund.AddRebateTotal(o.GetFloat64("amount"))
+		if err != nil {
+			return err
+		}
+		err = userfund.AddBalance(o.GetFloat64("amount"))
+	case OrderReward:
+		err = userfund.AddRewardTotal(o.GetFloat64("amount"))
+		if err != nil {
+			return err
+		}
+		err = userfund.AddBalance(o.GetFloat64("amount"))
+	case OrderCancelGame:
+		err = userfund.AddSaleTotal(-o.GetFloat64("amount"))
+		if err != nil {
+			return err
+		}
+		err = userfund.AddBalance(o.GetFloat64("amount"))
+	case OrderCancelTask:
+		err = userfund.AddSaleTotal(-o.GetFloat64("amount"))
+		if err != nil {
+			return err
+		}
+		err = userfund.AddBalance(o.GetFloat64("amount"))
+	case OrderCancelReward:
+		err = userfund.AddRewardTotal(-o.GetFloat64("amount"))
+		if err != nil {
+			return err
+		}
+		err = userfund.AddBalance(-o.GetFloat64("amount"))
+	case OrderCancelRebate:
+		err = userfund.AddRebateTotal(-o.GetFloat64("amount"))
+		if err != nil {
+			return err
+		}
+		err = userfund.AddBalance(-o.GetFloat64("amount"))
+	}
+
 	if err != nil {
 		return err
 	}
 
-	userfund := NewUserfund()
-	userfund.SetData("userid", o.GetInt64("fromuserid"))
-	userfund.SetTransaction(transaction)
-	switch o.GetInt("ordertypeid") {
-	case OrderJoin:
-	case OrderGame:
-	case OrderTask:
-		err = userfund.AddSaleTotal(o.GetFloat64("amount"))
-	case OrderRebate:
-		err = userfund.AddRebateTotal(o.GetFloat64("amount"))
-	case OrderReward:
-		err = userfund.AddRewardTotal(o.GetFloat64("amount"))
-	case OrderCancelGame:
-	case OrderCancelTask:
-		err = userfund.AddSaleTotal(-o.GetFloat64("amount"))
-	case OrderCancelReward:
-		err = userfund.AddRewardTotal(-o.GetFloat64("amount"))
-	case OrderCancelRebate:
-		err = userfund.AddRebateTotal(-o.GetFloat64("amount"))
-	}
+	o.SetData("availablebalance", userfund.GetFloat64("availablebalance")) //变更后
+	// 不明字段（暂时不处理）
+	o.SetData("clientip", "127.0.0.1")
+	o.SetData("proxyip", "127.0.0.1")
+
+	err = o.Save()
 
 	return err
 }

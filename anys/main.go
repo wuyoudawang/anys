@@ -80,11 +80,11 @@ func processLottery(c *config.Config, name string, interval time.Duration) {
 		err = lty.Persist(winNum)
 		fmt.Println(err)
 
-		lty.SendReward(key)
-		issue.Statistic()
+		// lty.SendReward(key)
+		// issue.Statistic()
 
-		ltyObj := lty.GetLotteryModel()
-		ltyObj.ProcessIssueError()
+		// ltyObj := lty.GetLotteryModel()
+		// ltyObj.ProcessIssueError()
 
 		lty.Reset()
 	}

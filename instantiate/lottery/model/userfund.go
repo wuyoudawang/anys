@@ -26,6 +26,9 @@ func (u *Userfund) LoadByUserId() {
 func (u *Userfund) AddSaleTotal(val float64) error {
 	u.LoadByUserId()
 	if u.GetId() <= 0 {
+		if transaction := u.GetTransaction(); transaction != nil {
+			transaction.Rollback()
+		}
 		return EmptyEntityErr
 	}
 
@@ -38,6 +41,9 @@ func (u *Userfund) AddSaleTotal(val float64) error {
 func (u *Userfund) AddRebateTotal(val float64) error {
 	u.LoadByUserId()
 	if u.GetId() <= 0 {
+		if transaction := u.GetTransaction(); transaction != nil {
+			transaction.Rollback()
+		}
 		return EmptyEntityErr
 	}
 
@@ -51,6 +57,9 @@ func (u *Userfund) AddRebateTotal(val float64) error {
 func (u *Userfund) AddRewardTotal(val float64) error {
 	u.LoadByUserId()
 	if u.GetId() <= 0 {
+		if transaction := u.GetTransaction(); transaction != nil {
+			transaction.Rollback()
+		}
 		return EmptyEntityErr
 	}
 
@@ -63,6 +72,9 @@ func (u *Userfund) AddRewardTotal(val float64) error {
 func (u *Userfund) AddBalance(val float64) error {
 	u.LoadByUserId()
 	if u.GetId() <= 0 {
+		if transaction := u.GetTransaction(); transaction != nil {
+			transaction.Rollback()
+		}
 		return EmptyEntityErr
 	}
 
