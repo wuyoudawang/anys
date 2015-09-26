@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -472,11 +473,11 @@ func PHPSerialize(byt []byte) (interface{}, error) {
 }
 
 /**
-* 计算相对于当前时间的时间戳
+* time format to timestemp
 * @author；rey
 * @date: 2015.9.11
-* @param: layout 日期格式，格式化时间
-* @return；时间戳和错误
+* @param: @layout format, @val: timestemp
+* @return；timestemp and error
  */
 func StringToTime(layout string, val string) (int64, error) {
 	t, err := time.Parse(layout, val)
@@ -488,15 +489,117 @@ func StringToTime(layout string, val string) (int64, error) {
 }
 
 /**
-* 时间戳转化为日期
+* timestemp to foramt string
 * @author；rey
 * @date: 2015.9.11
-* @param: layout 日期格式，纳秒
-* @return；日期
+* @param: layout: time format, @ns: nanoseconds
+* @return；string
  */
 func TimeToString(layout string, ns int64) string {
 	t := time.Time{}
 	t.Add(time.Duration(ns))
 
 	return t.Format(layout)
+}
+
+/**
+* input will be filtered by the xsser
+* @author；rey
+* @date: 2015.9.11
+* @param: @src string
+* @return；string
+ */
+func XSS(src string) string {
+	// remove all non-printable characters. CR(0a) and LF(0b) and TAB(9) are allowed
+	// this prevents some character re-spacing such as <java\0script>
+	// note that you have to handle splits with \n, \r, and \t later since they *are* allowed in some inputs
+	reg := regexp.MustCompile("[\x00-\x08\x0b-\x0c\x0e-\x19]")
+	src = reg.ReplaceAllString(src, "")
+	// straight replacements, the user should never need these since they're normal characters
+	// this prevents like <IMG SRC=@avascript:alert('XSS')>
+	search := "abcdefghijklmnopqrstuvwxyz" +
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+		"1234567890!@#$%^&*()" +
+		"~`\";:?+/={}[]-_|'\\"
+
+	for i := 0; i < len(search); i++ {
+		// ;? matches the ;, which is optional
+		// 0{0,7} matches any padded zeros, which are optional and go up to 8 chars
+		// @ @ search for the hex values
+		reg, err := regexp.Compile(fmt.Sprintf("(?i:&#[xX]0{0,8}%X;?)", search[i]))
+		if err != nil {
+			continue
+		}
+		src = reg.ReplaceAllString(src, string(search[i]))
+		// @ @ 0{0,7} matches '0' zero to seven times
+		reg, err = regexp.Compile(fmt.Sprintf("(?i:�{0,8}%d;?)", search[i]))
+		if err != nil {
+			continue
+		}
+		src = reg.ReplaceAllString(src, string(search[i])) //with a
+	}
+
+	// now the only remaining whitespace attacks are \t, \n, and \r
+	labels := []string{
+		"javascript", "vbscript", "expression",
+		"applet", "meta", "xml",
+		"blink", "link", "style",
+		"object", "iframe", "frame",
+		"ilayer", "layer", "bgsound",
+		"title", "base",
+	}
+
+	eventTags := []string{
+		"onabort", "onactivate", "onafterprint",
+		"onafterupdate", "onbeforeactivate", "onbeforecopy",
+		"onbeforecut", "onbeforedeactivate", "onbeforeeditfocus",
+		"onbeforepaste", "onbeforeprint", "onbeforeunload",
+		"onbeforeupdate", "onblur", "onbounce",
+		"oncellchange", "onchange", "onclick",
+		"oncontextmenu", "oncontrolselect", "oncopy",
+		"oncut", "ondataavailable", "ondatasetchanged",
+		"ondatasetcomplete", "ondblclick", "ondeactivate",
+		"ondrag", "ondragend", "ondragenter",
+		"ondragleave", "ondragover", "ondragstart",
+		"ondrop", "onerror", "onerrorupdate",
+		"onfilterchange", "onfinish", "onfocus",
+		"onfocusin", "onfocusout", "onhelp",
+		"onkeydown", "onload", "onlosecapture",
+		"onmousedown", "onmouseenter", "onmouseleave",
+		"onmousemove", "onmouseout", "onmouseover",
+		"onmouseup", "onmousewheel", "onmove",
+		"onmoveend", "onmovestart", "onpaste",
+		"onpropertychange", "onreadystatechange", "onreset",
+		"onresize", "onresizeend", "onresizestart",
+		"onrowenter", "onrowexit", "onrowsdelete",
+		"onrowsinserted", "onscroll", "onselect",
+		"onselectionchange", "onselectstart", "onstart",
+		"onstop", "onsubmit", "onunload",
+	}
+
+	set := append(eventTags, labels...)
+
+	found := true
+	subPattern := "((&#[xX]0{0,8}([9ab]);)|(�{0,8}([9|10|13]);))*"
+	pattern := ""
+	for found {
+		for _, label := range set {
+			pattern = ""
+			for i, char := range label {
+				if i > 0 {
+					pattern += subPattern
+				}
+				pattern += string(char)
+			}
+			reg, err := regexp.Compile(fmt.Sprintf("(?i:%s)", pattern))
+			if err != nil {
+				continue
+			}
+			repl := label[0:2] + "<x>" + label[2:] // add in <> to nerf the tag
+			src = reg.ReplaceAllString(src, repl)
+		}
+
+	}
+
+	return src
 }
