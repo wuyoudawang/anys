@@ -6,6 +6,7 @@ import (
 
 	"anys/config"
 	_ "anys/pkg/db"
+	"github.com/liuzhiyi/go-db"
 )
 
 var c = &config.Config{}
@@ -24,6 +25,12 @@ func Test_Db(t *testing.T) {
 	for _, item := range collection.GetItems() {
 		fmt.Println(item.GetString("functionname"))
 	}
+	stmt, _ := db.F.GetConnect("read").Prepare("select * from users")
+	stmt.Close()
+	err := stmt.Close()
+	fmt.Println(err)
+	db.F.Destroy()
+	db.F.Destroy()
 }
 
 func TestFund(t *testing.T) {

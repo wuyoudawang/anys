@@ -143,7 +143,9 @@ func (t *Tasks) Flush(p *Projects) error {
 		done := false
 
 		if t.GetInt("stoponwin") == 1 {
-			done = true
+			if p.GetInt("isgetprize") == 1 {
+				done = true
+			}
 		} else {
 			if t.GetInt("type") == 2 {
 				taskprice := t.GetFloat64("taskprice")

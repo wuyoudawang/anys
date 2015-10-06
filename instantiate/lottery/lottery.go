@@ -273,10 +273,10 @@ func (l *Lottery) SendReward(key int) error {
 			log.Error("the project(%d) has an error:%s", item.GetId(), err.Error())
 		}
 
-		if project.GetInt64("taskid") > 0 {
-			err = project.FlushTask()
+		if item.GetInt64("taskid") > 0 {
+			err = item.FlushTask()
 			if err != nil {
-				log.Error("An error occurred while freshing the task(%d): '%s'", project.GetInt64("taskid"), err.Error())
+				log.Error("An error occurred while freshing the task(%d): '%s'", item.GetInt64("taskid"), err.Error())
 			}
 		}
 	}
