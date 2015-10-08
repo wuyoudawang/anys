@@ -350,7 +350,7 @@ func (p *Projects) Rebate() error {
 	// 计算自己直接上级的返点
 	if parentPoint > 0 && parentPoint-maxPoint > 0 {
 		amount := (parentPoint - maxPoint) * p.GetFloat64("totalprice")
-		_, err := p.CreateOrder(OrderRebate, amount) //返点插入订单需要在更新额度前完成，不然会统计不到转变前额度
+		_, err := p.CreateOrder(OrderRebate, amount)
 		if err != nil {
 			return err
 		}
@@ -360,7 +360,7 @@ func (p *Projects) Rebate() error {
 	point = p.GetCurrentUserPoint()
 	if maxPoint > point {
 		amount := (maxPoint - point) * p.GetFloat64("totalprice")
-		_, err := p.CreateOrder(OrderRebate, amount) //返点插入订单需要在更新额度前完成，不然会统计不到转变前额度
+		_, err := p.CreateOrder(OrderRebate, amount)
 		if err != nil {
 			return err
 		}

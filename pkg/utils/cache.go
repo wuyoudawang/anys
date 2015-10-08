@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"hash/crc32"
 	"os"
@@ -50,18 +52,14 @@ func (c CRC) Value() uint32 {
 
 type LruNode struct {
 	value []byte
+	key   []byte
 	prev  *LruNode
 	next  *LruNode
 
+	charge    int
 	refs      uint32
 	hash      uint32
 	next_hash *LruNode
-}
-
-func (n *LruNode) key() uint32 {
-	if n.next == n {
-
-	}
 }
 
 func (n *LruNode) insert(newNode *LruNode) {
@@ -101,22 +99,22 @@ func NewLruTable() *LruTable {
 	return lt
 }
 
-func (lt *LruTable) findPtr(key string, hash uint32) **LruNode {
+func (lt *LruTable) findPtr(key []byte, hash uint32) **LruNode {
 	ptr := &(lt.list[hash&(lt.length-1)])
-	for *ptr != nil && ((*ptr).hash != hash || key != (*ptr).key) {
-		ptr = &(*ptr.next_hash)
+	for *ptr != nil && ((*ptr).hash != hash || bytes.Equal(key, (*ptr).key)) {
+		ptr = &((*ptr).next_hash)
 	}
 	return ptr
 }
 
 func (lt *LruTable) resize() {
-	newLen := 4
+	var newLen uint32 = 4
 	for newLen < lt.elems {
 		newLen *= 2
 	}
 
 	newList := make([]*LruNode, newLen)
-	for i := 0; i < lt.length; i++ {
+	for i := uint32(0); i < lt.length; i++ {
 		node := lt.list[i]
 		for node != nil {
 			next := node.next_hash
@@ -131,12 +129,12 @@ func (lt *LruTable) resize() {
 	lt.length = newLen
 }
 
-func (lt *LruTable) Lookup(key string, hash uint32) *LruNode {
+func (lt *LruTable) Lookup(key []byte, hash uint32) *LruNode {
 	return *lt.findPtr(key, hash)
 }
 
 func (lt *LruTable) Insert(node *LruNode) *LruNode {
-	ptr := lt.findPtr(node.key(), node.hash)
+	ptr := lt.findPtr(node.key, node.hash)
 	old := *ptr
 	if old == nil {
 		node.next_hash = nil
@@ -154,7 +152,7 @@ func (lt *LruTable) Insert(node *LruNode) *LruNode {
 	return old
 }
 
-func (lt *LruTable) Delete(key string, hash uint32) *LruNode {
+func (lt *LruTable) Delete(key []byte, hash uint32) *LruNode {
 	ptr := lt.findPtr(key, hash)
 	result := *ptr
 	if result != nil {
@@ -189,13 +187,14 @@ func (lc *LruCache) unref(node *LruNode) error {
 	if node.refs == 0 {
 		lc.used -= node.charge
 	}
+	return nil
 }
 
 func (lc *LruCache) Release() {
 
 }
 
-func (lc *LruCache) Delete(key string, hash uint32) {
+func (lc *LruCache) Delete(key []byte, hash uint32) {
 	lc.m.Lock()
 	defer lc.m.Unlock()
 
@@ -210,10 +209,10 @@ func (lc *LruCache) Insert(node *LruNode) {
 	lc.m.Lock()
 	defer lc.m.Unlock()
 
-	node.Insert(&lc.lru)
+	node.insert(&(lc.lru))
 }
 
-func (lc *LruCache) Lookup(key string, hash uint32) *LruNode {
+func (lc *LruCache) Lookup(key []byte, hash uint32) *LruNode {
 	lc.m.Lock()
 	defer lc.m.Unlock()
 
@@ -225,4 +224,32 @@ func (lc *LruCache) Lookup(key string, hash uint32) *LruNode {
 	}
 
 	return node
+}
+
+func PutLenPrefixedBytes(dst, src *[]byte) int {
+	encodeLen := VarintLength(uint64(len(*src)))
+	*dst = make([]byte, encodeLen)
+	binary.PutVarint(*dst, int64(len(*src)))
+	*dst = append(*dst, *src...)
+	return encodeLen + len(*src)
+}
+
+func GetLenPrefixedBytes(dst, src *[]byte) bool {
+	val, offset := binary.Varint(*src)
+	if val > 0 {
+		*src = (*src)[offset:]
+		*dst = append(*dst, *src...)
+		return true
+	} else {
+		return false
+	}
+}
+
+func VarintLength(v uint64) int {
+	l := 1
+	for v >= 128 {
+		v >>= 7
+		l++
+	}
+	return l
 }

@@ -25,7 +25,7 @@ func TestLottery(t *testing.T) {
 	i := 0
 	for _, lty := range ltyconf.GetAllLottery() {
 		job := eng.NewJob(&lotteryJob{lty}, "test")
-		job.Ticker(30 * time.Second)
+		job.Ticker(time.Duration(30+i*10) * time.Second)
 		eng.Pending(job)
 
 		i++
