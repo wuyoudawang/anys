@@ -21,12 +21,24 @@ type Batch struct {
 	scarch []byte
 }
 
+func (b *Batch) Contents() []byte {
+	return b.rep
+}
+
+func (b *Batch) Size() int {
+	return len(b.rep)
+}
+
 func (b *Batch) count() uint32 {
 	return binary.LittleEndian.Uint32(b.rep[8:])
 }
 
 func (b *Batch) increCount() {
 	binary.LittleEndian.PutUint32(b.rep[8:], b.count()+1)
+}
+
+func (b *Batch) setCount(v uint32) {
+	binary.LittleEndian.PutUint32(b.rep[8:], v)
 }
 
 func (b *Batch) sequence() uint64 {
@@ -104,6 +116,11 @@ func (b *Batch) InsertInto(memt *MemTable) {
 	inser.sequence_ = b.sequence()
 	inser.mem = memt
 	b.Iterate(inser)
+}
+
+func (b *Batch) Append(src *Batch) {
+	b.setCount(b.count() + src.count())
+	b.rep = append(b.rep, src[header:len(src)-header])
 }
 
 type batchInserter struct {

@@ -162,11 +162,11 @@ type WriteOptions struct {
 	// system call followed by "fsync()".
 	//
 	// Default: false
-	sync bool
+	Sync bool
 }
 
 func NewWriteOptions() *WriteOptions {
 	wopt := new(WriteOptions)
-	wopt.sync = false
+	wopt.Sync = false
 	return wopt
 }

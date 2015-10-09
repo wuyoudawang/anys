@@ -40,10 +40,11 @@ func (mti *MemTableIterator) Value() []byte {
 }
 
 type MemTable struct {
-	table   utils.Skiplist
-	refs    int
-	compare comparator.Comparator
-	varbuf  [10]byte
+	table       utils.Skiplist
+	refs        int
+	compare     comparator.Comparator
+	varbuf      [10]byte
+	memoryUsege int
 }
 
 func (mt *MemTable) Ref() {
@@ -83,6 +84,7 @@ func (mt *MemTable) Add(s uint64, valueType int, key, value []byte) {
 	writtenLen = binary.PutVarint(mt.varbuf[:], int64(valuelen))
 	buf = append(buf, mt.varbuf[:writtenLen]...)
 	buf = append(buf, value...)
+	mt.memoryUsege += len(buf)
 
 	mt.table.Insert(buf)
 }
@@ -112,4 +114,8 @@ func (mt *MemTable) Get(key []byte) ([]byte, bool) {
 		}
 	}
 	return nil, false
+}
+
+func (mt *MemTable) ApproximateMemoryUsage() int {
+	return mt.memoryUsege
 }
