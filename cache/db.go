@@ -1,8 +1,8 @@
 package cache
 
 import (
-	"os"
 	"sync"
+	"unsafe"
 
 	"anys/cache/log"
 	"anys/cache/storeEngine"
@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	TypeDeletion = 0x0
-	TypeValue    = 0x1
+	kTypeDeletion     = 0x0
+	kTypeValue        = 0x1
+	kValueTypeForSeek = kTypeValue
 
 	kNumLevels int = 7
 
@@ -41,7 +42,7 @@ type BatchWriter struct {
 	batch *Batch
 	sync  bool
 	done  bool
-	mc    sync.Cond
+	mc    *sync.Cond
 }
 
 type DB struct {
@@ -63,7 +64,7 @@ func (d *DB) MaybeScheduleStorage() {
 
 }
 
-func (d *DB) MergeBatch(lastWriter *BatchWriter) *Batch {
+func (d *DB) MergeBatch(lastWriter **BatchWriter) *Batch {
 	if d.writes.Empty() {
 		return nil
 	}
@@ -81,7 +82,7 @@ func (d *DB) MergeBatch(lastWriter *BatchWriter) *Batch {
 	}
 
 	*lastWriter = first
-	for i := 0; i < d.writes.Size(); i++ {
+	for i := 0; int64(i) < d.writes.Size(); i++ {
 		w := (*BatchWriter)(d.writes.Index(i))
 		if w.sync && !first.sync {
 			break
@@ -135,6 +136,7 @@ func (d *DB) MergeBatch(lastWriter *BatchWriter) *Batch {
 }
 
 func (d *DB) Write(b *Batch, opt *WriteOptions) error {
+	var err error
 	w := new(BatchWriter)
 	w.batch = b
 	w.sync = opt.Sync
@@ -142,8 +144,8 @@ func (d *DB) Write(b *Batch, opt *WriteOptions) error {
 	w.mc = sync.NewCond(&d.mu)
 
 	d.mu.Lock()
-	d.writes.Push(w)
-	for !w.done && w != d.writes.Head() {
+	d.writes.Push(unsafe.Pointer(w))
+	for !w.done && unsafe.Pointer(w) != d.writes.Head() {
 		w.mc.Wait()
 	}
 
@@ -156,9 +158,9 @@ func (d *DB) Write(b *Batch, opt *WriteOptions) error {
 		updates := d.MergeBatch(&lastWriter)
 		// updates.setSequence(lastSequence+1)
 		d.mu.Unlock()
-		err := d.log.AddRecord(updates.Contents())
+		err = d.log.AddRecord(updates.Contents())
 		if err == nil && opt.Sync {
-			d.log.Sync()
+			//d.log.Sync()
 		}
 
 		if err == nil {
@@ -172,7 +174,7 @@ func (d *DB) Write(b *Batch, opt *WriteOptions) error {
 
 	for {
 		ready := (*BatchWriter)(d.writes.Pop())
-		if ready != &w {
+		if ready != w {
 			ready.err = err
 			ready.done = true
 			ready.mc.Signal()

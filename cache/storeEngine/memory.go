@@ -1,7 +1,7 @@
 package storeEngine
 
 import (
-	"anys/cache/iterator"
+// "anys/cache/iterator"
 )
 
 type memTableIterator struct {

@@ -51,7 +51,7 @@ func (b *Batch) setSequence(v uint64) {
 
 func (b *Batch) Put(key, value []byte) {
 	b.increCount()
-	b.rep = append(b.rep, byte(TypeValue))
+	b.rep = append(b.rep, byte(kTypeValue))
 	l := utils.PutLenPrefixedBytes(&(b.scarch), &key)
 	b.rep = append(b.rep, b.scarch[:l]...)
 	l = utils.PutLenPrefixedBytes(&b.scarch, &value)
@@ -60,7 +60,7 @@ func (b *Batch) Put(key, value []byte) {
 
 func (b *Batch) Delete(key []byte) {
 	b.increCount()
-	b.rep = append(b.rep, byte(TypeDeletion))
+	b.rep = append(b.rep, byte(kTypeDeletion))
 	l := utils.PutLenPrefixedBytes(&b.scarch, &key)
 	b.rep = append(b.rep, b.scarch[:l]...)
 }
@@ -86,14 +86,14 @@ func (b *Batch) Iterate(iser Inserter) error {
 		input = input[1:]
 
 		switch tag {
-		case TypeValue:
+		case kTypeValue:
 			if utils.GetLenPrefixedBytes(&key, &input) &&
 				utils.GetLenPrefixedBytes(&value, &input) {
 				iser.Put(key, value)
 			} else {
 				return fmt.Errorf("bad WriteBatch Put")
 			}
-		case TypeDeletion:
+		case kTypeDeletion:
 			if utils.GetLenPrefixedBytes(&key, &input) {
 				iser.Delete(key)
 			} else {
@@ -120,7 +120,7 @@ func (b *Batch) InsertInto(memt *MemTable) {
 
 func (b *Batch) Append(src *Batch) {
 	b.setCount(b.count() + src.count())
-	b.rep = append(b.rep, src[header:len(src)-header])
+	b.rep = append(b.rep, src.rep[header:len(src.rep)-header]...)
 }
 
 type batchInserter struct {
@@ -129,11 +129,11 @@ type batchInserter struct {
 }
 
 func (bi *batchInserter) Put(key, val []byte) {
-	bi.mem.Add(bi.sequence_, TypeValue, key, val)
+	bi.mem.Add(bi.sequence_, kTypeValue, key, val)
 	bi.sequence_++
 }
 
 func (bi *batchInserter) Delete(key []byte) {
-	bi.mem.Add(bi.sequence_, TypeDeletion, key, nil)
+	bi.mem.Add(bi.sequence_, kTypeDeletion, key, nil)
 	bi.sequence_++
 }

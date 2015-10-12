@@ -33,13 +33,13 @@ type dFile struct {
 	number uint64
 }
 
-type compactPtr struct {
+type compactKey struct {
 	level int
 	key   internalKey
 }
 
 type versionEdit struct {
-	comparatorName    string
+	comparatorName    []byte
 	logNumber         uint64
 	prevLogNumber     uint64
 	nextFileNumber    uint64
@@ -50,7 +50,7 @@ type versionEdit struct {
 	hasNextFileNumber bool
 	hasLastSequence   bool
 
-	compactPointers []compactPtr
+	compactPointers []*compactKey
 	deletFiles      []dFile
 	newFiles        []fileMetaData
 }
@@ -77,15 +77,15 @@ func (ve *versionEdit) SetSequence(seq uint64) {
 
 func (ve *versionEdit) SetComparatorName(name string) {
 	ve.hasComparator = true
-	ve.comparatorName = name
+	ve.comparatorName = []byte(name)
 }
 
-func (ve *versionEdit) SetCompactPointer(ptr unsafe.Pointer) {
+func (ve *versionEdit) SetCompactPointer(ptr *compactKey) {
 	ve.compactPointers = append(ve.compactPointers, ptr)
 }
 
 func (ve *versionEdit) Clear() {
-	ve.comparatorName = ""
+	ve.comparatorName = ve.comparatorName[:0]
 	ve.logNumber = 0
 	ve.prevLogNumber = 0
 	ve.nextFileNumber = 0
@@ -100,55 +100,58 @@ func (ve *versionEdit) Clear() {
 
 func (ve *versionEdit) encodeTo(dst *[]byte) {
 	if ve.hasComparator {
-		binary.PutVarint(dst, kComparator)
-		utils.PutLenPrefixedBytes(&dst, &ve.comparatorName)
+		binary.PutVarint(*dst, kComparator)
+		utils.PutLenPrefixedBytes(dst, &ve.comparatorName)
 	}
 
 	if ve.hasLogNumber {
-		binary.PutVarint(dst, kLogNumber)
-		binary.PutVarint(dst, ve.logNumber)
+		binary.PutVarint(*dst, kLogNumber)
+		binary.PutVarint(*dst, int64(ve.logNumber))
 	}
 
 	if ve.hasPrevLogNumber {
-		binary.PutVarint(dst, kPrevLogNumber)
-		binary.PutVarint(dst, ve.prevLogNumber)
+		binary.PutVarint(*dst, kPrevLogNumber)
+		binary.PutVarint(*dst, int64(ve.prevLogNumber))
 	}
 
 	if ve.hasNextFileNumber {
-		binary.PutVarint(dst, kNextFileNumber)
-		binary.PutVarint(dst, ve.nextFileNumber)
+		binary.PutVarint(*dst, kNextFileNumber)
+		binary.PutVarint(*dst, int64(ve.nextFileNumber))
 	}
 
 	if ve.hasLastSequence {
-		binary.PutVarint(dst, kLastSequence)
-		binary.PutVarint(dst, ve.lastSequence)
+		binary.PutVarint(*dst, kLastSequence)
+		binary.PutVarint(*dst, int64(ve.lastSequence))
 	}
 
 	for _, cp := range ve.compactPointers {
-		binary.PutVarint(dst, kCompactPointer)
-		binary.PutVarint(dst, cp.level)
-		utils.PutLenPrefixedBytes(&dst, cp.key.encode())
+		binary.PutVarint(*dst, kCompactPointer)
+		binary.PutVarint(*dst, int64(cp.level))
+		src := cp.key.encode()
+		utils.PutLenPrefixedBytes(dst, &src)
 	}
 
 	for _, ditem := range ve.deletFiles {
-		binary.PutVarint(dst, kDeletedFile)
-		binary.PutVarint(dst, ditem.level)
-		binary.PutVarint(dst, ditem.number)
+		binary.PutVarint(*dst, kDeletedFile)
+		binary.PutVarint(*dst, int64(ditem.level))
+		binary.PutVarint(*dst, int64(ditem.number))
 	}
 
 	for _, metaData := range ve.newFiles {
-		binary.PutVarint(dst, kNewFile)
-		binary.PutVarint(dst, metaData.level) // level
-		binary.PutVarint(dst, metaData.number)
-		binary.PutVarint(dst, metaData.fileSize)
-		utils.PutLenPrefixedBytes(dst, f.smallest.Encode())
-		utils.PutLenPrefixedBytes(dst, f.largest.Encode())
+		binary.PutVarint(*dst, kNewFile)
+		binary.PutVarint(*dst, int64(metaData.level)) // level
+		binary.PutVarint(*dst, int64(metaData.number))
+		binary.PutVarint(*dst, int64(metaData.fileSize))
+		src := metaData.smallest.encode()
+		utils.PutLenPrefixedBytes(dst, &src)
+		src = metaData.largest.encode()
+		utils.PutLenPrefixedBytes(dst, &src)
 	}
 }
 
 func (ve *versionEdit) getInternalKey(input *[]byte) (internalKey, bool) {
 	var dst []byte
-	if utils.GetLenPrefixedBytes(&dst, &src) {
+	if utils.GetLenPrefixedBytes(&dst, input) {
 		return internalKey(dst), true
 	} else {
 		return nil, false
@@ -157,8 +160,8 @@ func (ve *versionEdit) getInternalKey(input *[]byte) (internalKey, bool) {
 
 func (ve *versionEdit) getLevel(input []byte) (int, bool) {
 	v, _ := binary.Varint(input)
-	if v < kNumLevels {
-		return v, bool
+	if v < int64(kNumLevels) {
+		return int(v), true
 	} else {
 		return -1, false
 	}

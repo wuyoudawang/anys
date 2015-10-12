@@ -106,10 +106,10 @@ func (mt *MemTable) Get(key []byte) ([]byte, bool) {
 		keyLen, offset := binary.Varint(entry)
 		valueType := binary.LittleEndian.Uint64(entry[int64(offset)+keyLen-8:])
 		switch valueType {
-		case TypeValue:
+		case kTypeValue:
 			v := getLenPrefixedBytes(entry[int64(offset)+keyLen:])
 			return v, true
-		case TypeDeletion:
+		case kTypeDeletion:
 			return nil, false
 		}
 	}

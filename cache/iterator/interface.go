@@ -43,6 +43,9 @@ type CommonIterator interface {
 
 	// TODO: Remove this when ready.
 	Valid() bool
+
+	//error
+	Error() error
 }
 
 type Interface interface {

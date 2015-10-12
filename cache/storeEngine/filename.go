@@ -15,25 +15,25 @@ const (
 	InfoLogFile
 )
 
-func makeFileName(name string, number uint64, suffix string) string {
+func makeFileName(dbname string, number uint64, suffix string) string {
 	return fmt.Sprintf(
 		"%s/%06llu.%s",
-		name,
+		dbname,
 		number,
 		suffix,
 	)
 }
 
-func logFileName(name string, number uint64) string {
-	return makeFileName(name, number, "log")
+func logFileName(dbname string, number uint64) string {
+	return makeFileName(dbname, number, "log")
 }
 
-func tableFileName(name string, number uint64) string {
-	return makeFileName(name, number, "ldb")
+func tableFileName(dbname string, number uint64) string {
+	return makeFileName(dbname, number, "ldb")
 }
 
-func sstTableFileName(name string, number uint64) string {
-	return makeFileName(name, number, "sst")
+func sstTableFileName(dbname string, number uint64) string {
+	return makeFileName(dbname, number, "sst")
 }
 
 func currentFileName(dbname string) string {
@@ -51,7 +51,7 @@ func lockFileName(dbname string) string {
 }
 
 func tempFileName(dbname string, number uint64) string {
-	return makeFileName(name, number, "dbtmp")
+	return makeFileName(dbname, number, "dbtmp")
 }
 
 func infoLogFileName(dbname string) string {
@@ -115,7 +115,7 @@ func oldInfoLogFileName(dbname string) string {
 //   return true;
 // }
 
-func setCurrentFile(dbname string, number uint64) {
+func setCurrentFile(dbname string, number uint64) error {
 	manifest := descriptorFileName(dbname, number)
 	manifest = manifest[len(dbname)+1:]
 	tmp := tempFileName(dbname, number)
