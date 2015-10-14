@@ -64,6 +64,36 @@ type Job struct {
 	sibling *Job
 }
 
+func isBlack(j *Job) bool {
+	return (j == nil || j.color)
+}
+
+func isRed(j *Job) bool {
+	return !isBlack(j)
+}
+
+func black(j *Job) {
+	if j != nil {
+		j.color = true
+	}
+}
+
+func red(j *Job) {
+	if j != nil {
+		j.color = false
+	}
+}
+
+func copyColor(dst *Job, src *Job) {
+	if dst != nil {
+		if src != nil {
+			dst.color = src.color
+		} else {
+			dst.color = false
+		}
+	}
+}
+
 func NewJob(entity Entity, name string) *Job {
 	return &Job{
 		e:           entity,
@@ -89,39 +119,11 @@ func (j *Job) GetEngine() *Engine {
 	return j.eng
 }
 
-func (j *Job) isBlack() bool {
-	return (j == nil || j.color)
-}
-
-func (j *Job) isRed() bool {
-	return (j != nil && !j.color)
-}
-
-func (j *Job) black() *Job {
-	if j != nil {
-		j.color = true
-	}
-
-	return j
-}
-
-func (j *Job) red() *Job {
-	if j != nil {
-		j.color = false
-	}
-
-	return j
-}
-
-func (j *Job) copyColor(job *Job) *Job {
-	if j != nil {
-		j.color = job.color
-	}
-
-	return j
-}
-
 func (j *Job) leftRotate(root **Job) *Job {
+	if j.right == nil {
+		return j
+	}
+
 	temp := j.right
 	temp.parent = j.parent
 
@@ -142,6 +144,10 @@ func (j *Job) leftRotate(root **Job) *Job {
 }
 
 func (j *Job) rightRotate(root **Job) *Job {
+	if j.left == nil {
+		return j
+	}
+
 	temp := j.left
 	temp.parent = j.parent
 
@@ -261,12 +267,12 @@ func (j *Job) add(root **Job) *Job {
 	*node = j
 	j.parent = parent
 
-	for *node != *root && parent.isBlack() {
+	for *node != *root && isRed(parent) {
 		if parent.parent != nil && parent == parent.parent.left {
-			if parent.parent.right.isRed() {
-				parent.parent.red()
-				parent.parent.right.black()
-				parent.black()
+			if isRed(parent.parent.right) {
+				red(parent.parent)
+				black(parent.parent.right)
+				black(parent)
 				node = &(parent.parent)
 				parent = (*node).parent
 			} else {
@@ -276,15 +282,15 @@ func (j *Job) add(root **Job) *Job {
 					(*node).parent.leftRotate(root)
 				}
 
-				(*node).parent.black()
-				(*node).parent.parent.red()
+				black((*node).parent)
+				red((*node).parent.parent)
 				(*node).parent.parent.rightRotate(root)
 			}
 		} else {
-			if parent.parent != nil && parent.parent.left.isRed() {
-				parent.parent.red()
-				parent.parent.right.black()
-				parent.black()
+			if parent.parent != nil && isRed(parent.parent.left) {
+				red(parent.parent)
+				black(parent.parent.right)
+				black(parent)
 				node = &(parent.parent)
 				parent = (*node).parent
 			} else {
@@ -300,16 +306,16 @@ func (j *Job) add(root **Job) *Job {
 
 				}
 
-				if parent.parent != nil {
-					(*node).parent.parent.red()
+				red(parent.parent)
+				black(parent)
+				if parent != nil {
+					parent.rightRotate(root)
 				}
-				(*node).parent.black()
-				(*node).parent.rightRotate(root)
 			}
 		}
 	}
 
-	(*root).black()
+	black((*root))
 	return j
 }
 
@@ -335,7 +341,7 @@ func (j *Job) Del(root **Job) {
 
 	if subst == *root {
 		*root = tmp
-		tmp.black()
+		black(tmp)
 
 		j.left = nil
 		j.right = nil
@@ -345,7 +351,7 @@ func (j *Job) Del(root **Job) {
 		return
 	}
 
-	isRed := subst.isRed()
+	isRed_ := isRed(subst)
 
 	if subst == subst.parent.left {
 		subst.parent.left = tmp
@@ -366,7 +372,7 @@ func (j *Job) Del(root **Job) {
 		subst.left = j.left
 		subst.right = j.right
 		subst.parent = j.parent
-		subst.copyColor(j)
+		copyColor(subst, j)
 
 		if j == *root {
 			*root = subst
@@ -392,67 +398,67 @@ func (j *Job) Del(root **Job) {
 	j.parent = nil
 	j.key = 0
 
-	if isRed {
+	if isRed_ {
 		return
 	}
 
-	for tmp != *root && tmp.isBlack() {
+	for tmp != *root && isBlack(tmp) {
 
 		if tmp == tmp.parent.left {
 			w := tmp.parent.right
 
-			if w.isRed() {
-				w.black()
+			if isRed(w) {
+				black(w)
 				tmp.parent.leftRotate(root)
 				w = tmp.parent.right
 			}
 
-			if w.left.isBlack() && w.right.isBlack() {
-				w.red()
+			if isBlack(w.left) && isBlack(w.right) {
+				red(w)
 				tmp = tmp.parent
 			} else {
-				if w.right.isBlack() {
-					w.red()
+				if isBlack(w.right) {
+					red(w)
 					w.rightRotate(root)
 					w = tmp.parent.right
 				}
 
-				w.copyColor(tmp.parent)
-				tmp.parent.black()
+				copyColor(w, tmp.parent)
+				black(tmp.parent)
 				tmp.parent.leftRotate(root)
 				tmp = *root
 			}
 		} else {
 			w := tmp.parent.left
 
-			if w.isRed() {
-				w.black()
-				tmp.parent.red()
+			if isRed(w) {
+				black(w)
+				red(tmp.parent)
 				tmp.parent.rightRotate(root)
 				w = tmp.parent.left
 			}
 
-			if w.left.isBlack() && w.right.isBlack() {
-				w.red()
+			if isBlack(w.left) && isBlack(w.right) {
+				red(w)
 				tmp = tmp.parent
 			} else {
-				if w.left.isBlack() {
-					w.right.black()
-					w.red()
+				if isBlack(w.left) {
+					black(w.right)
+					red(w)
 					w.leftRotate(root)
 					w = tmp.parent.left
 				}
 
-				w.copyColor(tmp.parent)
-				tmp.parent.black()
-				w.left.black()
+				copyColor(w, tmp.parent)
+				black(tmp.parent)
+				black(w.left)
 				tmp.parent.rightRotate(root)
 				tmp = *root
 			}
 		}
 	}
 
-	tmp.black()
+	black(tmp)
 
 }
 

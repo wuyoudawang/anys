@@ -36,7 +36,7 @@ var (
 		Create_conf: createConf,
 		Init_conf:   initConf,
 
-		// Init_module: initModule,
+		Init_module: initModule,
 	}
 )
 
@@ -51,6 +51,15 @@ func createConf(c *config.Config) {
 
 func initConf(c *config.Config) error {
 
+	return nil
+}
+
+func initModule(c *config.Config) error {
+	conf := GetConf(c)
+	if conf.goroutines > MAXGOROUTINE || conf.goroutines < 5 {
+		conf.goroutines = defaultGoRoutine / 2
+	}
+	conf.eng = NewEngine(conf.goroutines)
 	return nil
 }
 

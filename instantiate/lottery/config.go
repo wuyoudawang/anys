@@ -7,6 +7,7 @@ import (
 	"anys/instantiate/lottery/model"
 	"anys/jobs"
 	"anys/log"
+	"anys/pkg/db"
 	"anys/pkg/utils"
 )
 
@@ -54,6 +55,14 @@ func init() {
 	config.RegisterModule(ModuleName, LotteryModule)
 }
 
+func Install(c *config.Config) {
+	c.LoadModule(
+		ModuleName,
+		db.ModuleName,
+		log.ModuleName,
+	)
+}
+
 func createConf(c *config.Config) {
 	conf := &lotteryConf{}
 	c.SetConf(config.GetModule(ModuleName), conf)
@@ -81,14 +90,14 @@ func initModule(c *config.Config) error {
 	return nil
 }
 
-func installJobs(c *config.Config) {
+func InstallJobs(c *config.Config) {
 	eng := jobs.GetConf(c).GetEngine()
 
 	lotteries := GetConf(c).GetAllLottery()
 	for _, lty := range lotteries {
-		eng.Register(eng.NewJob(&lotteryJob{lty}, fmt.Sprintf("%s-DRAW-JOB", lty.name)))
-		eng.Register(eng.NewJob(&issueJob{lty.GetLotteryModel()}, fmt.Sprintf("%s-ISSUE-JOB", lty.name)))
-		eng.Register(eng.NewJob(&issueErrorJob{lty.GetLotteryModel()}, fmt.Sprintf("%s-ISSUEERROR-JOB", lty.name)))
+		eng.Register(eng.NewJob(&lotteryJob{lty}, fmt.Sprintf("DRAW-JOB.%s", lty.name)))
+		eng.Register(eng.NewJob(&issueJob{lty.GetLotteryModel()}, fmt.Sprintf("ISSUE-JOB.%s", lty.name)))
+		eng.Register(eng.NewJob(&issueErrorJob{lty.GetLotteryModel()}, fmt.Sprintf("ISSUEERROR-JOB.%s", lty.name)))
 	}
 }
 

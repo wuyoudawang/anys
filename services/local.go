@@ -17,7 +17,7 @@ type LocalServer struct {
 }
 
 func NewDefaultLocalServer(eng *jobs.Engine) *LocalServer {
-	return NewLocalServer(eng, handlerSig, os.Interrupt, syscall.SIGHUP)
+	return NewLocalServer(eng, handlerSig /*os.Interrupt,*/, syscall.SIGHUP)
 }
 
 func handlerSig(sig os.Signal) error {

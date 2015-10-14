@@ -46,6 +46,10 @@ func init() {
 	config.RegisterModule(ModuleName, dbModule)
 }
 
+func Install(c *config.Config) {
+	c.LoadModule(ModuleName)
+}
+
 func createConf(c *config.Config) {
 	conf := &DnsConf{}
 	c.SetConf(config.GetModule(ModuleName), conf)

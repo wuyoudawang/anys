@@ -3,6 +3,8 @@ package cache
 import (
 	"encoding/binary"
 
+	"anys/cache/iterator"
+	"anys/cache/option"
 	"anys/pkg/comparator"
 )
 
@@ -166,13 +168,27 @@ type Version struct {
 	fileToStrageLevel int
 }
 
-func (v *Version) NewConcatenatingIterator(readOpt *ReadOptions, level int) {
+func (v *Version) NewConcatenatingIterator(readOpt *option.ReadOptions, level int) {
 
+}
+
+func (v *Version) AddIterators(readOpt *option.ReadOptions, iters *iterator.Interface) {
+
+}
+
+func (v *Version) GetOverlapsInput() {}
+
+func (v *Version) Ref() {
+	v.refs++
+}
+
+func (v *Version) Unref() {
+	v.refs--
 }
 
 type VesionSet struct {
 	dbname         string
-	opt            *Options
+	opt            *option.Options
 	nextFileNumber uint64
 	manifestNumber uint64
 	lastSequence   uint64

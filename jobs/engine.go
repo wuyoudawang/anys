@@ -240,10 +240,11 @@ func (e *Engine) schedule(job *Job) {
 
 		size := len(e.workers)
 		if size < e.getMaxGoroutines() {
-			worker := NewWorker(index, e)
+			worker := NewWorker(size, e)
 			e.workers = append(e.workers, worker)
 			worker.Add(job)
 			e.working(worker)
+			go worker.Run()
 		}
 
 		// job.log()

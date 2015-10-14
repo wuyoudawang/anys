@@ -51,10 +51,11 @@ func (c CRC) Value() uint32 {
 }
 
 type LruNode struct {
-	value []byte
-	key   []byte
-	prev  *LruNode
-	next  *LruNode
+	value   interface{}
+	deleter func([]byte, interface{})
+	key     []byte
+	prev    *LruNode
+	next    *LruNode
 
 	charge    int
 	refs      uint32
@@ -186,12 +187,15 @@ func (lc *LruCache) unref(node *LruNode) error {
 	node.refs--
 	if node.refs == 0 {
 		lc.used -= node.charge
+		node.deleter(node.key, node.value)
 	}
 	return nil
 }
 
-func (lc *LruCache) Release() {
-
+func (lc *LruCache) Release(node *LruNode) {
+	lc.m.Lock()
+	defer lc.m.Unlock()
+	lc.unref(node)
 }
 
 func (lc *LruCache) Delete(key []byte, hash uint32) {

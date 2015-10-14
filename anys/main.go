@@ -4,26 +4,40 @@ import (
 	"fmt"
 	"time"
 
+	"anys/builtin"
 	"anys/config"
 	"anys/instantiate/lottery"
 	"anys/instantiate/lottery/model"
+	"anys/jobs"
 	"anys/log"
 	"anys/pkg/db"
 )
+
+func Shedule(c *config.Config) {
+	builtin.InitServiceAndJob(c)
+	lottery.InstallJobs(c)
+	eng := jobs.GetConf(c).GetEngine()
+	job := eng.Job("DRAW-JOB.tcaifive")
+	job.Ticker(10 * time.Second)
+	eng.Pending(job)
+	jobs.GetConf(c).GetEngine().Serve()
+}
 
 func main() {
 	c := &config.Config{}
 	initMaster(c)
 
-	lcf := lottery.GetConf(c)
-	last := 1
-	for name, _ := range lcf.GetAllLottery() {
-		if last == len(lcf.GetAllLottery()) {
-			processLottery(c, name, 30)
-		}
-		go processLottery(c, name, 30)
-		last++
-	}
+	Shedule(c)
+
+	// lcf := lottery.GetConf(c)
+	// last := 1
+	// for name, _ := range lcf.GetAllLottery() {
+	// 	if last == len(lcf.GetAllLottery()) {
+	// 		processLottery(c, name, 30)
+	// 	}
+	// 	go processLottery(c, name, 30)
+	// 	last++
+	// }
 
 	exitMaster(c)
 	fmt.Println("finish")
@@ -114,11 +128,8 @@ func exitMaster(c *config.Config) {
 }
 
 func loadCoreMudule(c *config.Config) {
-	c.LoadModule(db.ModuleName)
-	c.LoadModule(log.ModuleName)
-	c.LoadModule(
-		lottery.ModuleName,
-		db.ModuleName,
-		log.ModuleName,
-	)
+	lottery.Install(c)
+	db.Install(c)
+	log.Install(c)
+	jobs.Install(c)
 }

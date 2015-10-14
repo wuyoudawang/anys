@@ -6,12 +6,19 @@ package utils
 import (
 	"bytes"
 	"io"
+	"unsafe"
 )
 
 type Pool struct {
+	mem []byte
 }
 
 type Alloctor struct {
+	buf []byte
+}
+
+func (a *Alloctor) New() unsafe.Pointer {
+	return nil
 }
 
 // A Buffer is a variable-sized buffer of bytes with Read and Write methods.

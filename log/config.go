@@ -44,6 +44,10 @@ func init() {
 	config.RegisterModule(ModuleName, logModule)
 }
 
+func Install(c *config.Config) {
+	c.LoadModule(ModuleName)
+}
+
 func createConf(c *config.Config) {
 	conf := &LogConf{}
 	c.SetConf(config.GetModule(ModuleName), conf)
