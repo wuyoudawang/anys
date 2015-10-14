@@ -13,7 +13,7 @@ type Config struct {
 	args       []string
 	ctx        []interface{}
 	commands   []*Command
-	delayCall  []caller
+	delayCall  []*caller
 	modules    []*Module
 	gvarstring map[string]string
 }

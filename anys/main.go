@@ -15,12 +15,8 @@ import (
 
 func Shedule(c *config.Config) {
 	builtin.InitServiceAndJob(c)
-	lottery.InstallJobs(c)
 	eng := jobs.GetConf(c).GetEngine()
-	job := eng.Job("DRAW-JOB.tcaifive")
-	job.Ticker(10 * time.Second)
-	eng.Pending(job)
-	jobs.GetConf(c).GetEngine().Serve()
+	eng.Serve()
 }
 
 func main() {

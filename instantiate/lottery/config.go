@@ -60,6 +60,7 @@ func Install(c *config.Config) {
 		ModuleName,
 		db.ModuleName,
 		log.ModuleName,
+		jobs.ModuleName,
 	)
 }
 
@@ -86,6 +87,7 @@ func initModule(c *config.Config) error {
 			continue
 		}
 	}
+	InstallJobs(c)
 
 	return nil
 }

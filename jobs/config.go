@@ -1,6 +1,8 @@
 package jobs
 
 import (
+	"time"
+
 	"anys/config"
 	"anys/log"
 )
@@ -28,6 +30,7 @@ var (
 		{config.BLOCK, "job", jobBlock},
 		{config.MORE1, "goroutines", setGoroutines},
 		{config.MORE1, "cycleQueueSize", setCycleQueueSize},
+		{config.MORE1, "create", createJob},
 	}
 
 	jobsModule = &config.Module{
@@ -93,4 +96,30 @@ func setCycleQueueSize(c *config.Config) error {
 	conf := GetConf(c)
 	conf.cycleQueueSize, err = c.Int(args[1])
 	return err
+}
+
+func createJob(c *config.Config) error {
+	h := func(c *config.Config) error {
+		args, err := c.CheckArgs(3)
+		if err != nil {
+			return err
+		}
+
+		eng := GetConf(c).GetEngine()
+		name := args[1]
+		val, err := c.Int(args[2])
+		if err != nil {
+			return err
+		}
+
+		job := eng.Job(name)
+		if job != nil {
+			job.Ticker(time.Duration(val) * time.Second)
+			eng.Pending(job)
+		}
+
+		return nil
+	}
+	c.DelayCaller(h)
+	return nil
 }

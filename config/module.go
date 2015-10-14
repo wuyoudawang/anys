@@ -123,6 +123,11 @@ func (c *Config) InitModules() {
 			c.modules[i].Init_module(c)
 		}
 	}
+
+	for _, dc := range c.delayCall {
+		c.args = dc.args
+		dc.handler(c)
+	}
 }
 
 func (c *Config) ExitModules() {

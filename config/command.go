@@ -49,6 +49,10 @@ type caller struct {
 	handler func(c *Config) error
 }
 
-func (c *Config) newCaller(commadName string) {
-
+func (c *Config) DelayCaller(handler func(c *Config) error) {
+	dc := &caller{
+		handler: handler,
+		args:    c.args,
+	}
+	c.delayCall = append(c.delayCall, dc)
 }
