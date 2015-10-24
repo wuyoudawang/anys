@@ -1,5 +1,9 @@
 package jobs
 
+import (
+	"math"
+)
+
 const (
 	free = iota
 	normal
@@ -7,25 +11,32 @@ const (
 )
 
 type Worker struct {
-	eng    *Engine
-	cq     *CycleQueue
-	next   *Worker
-	index  int
-	stoper Stoper
+	eng       *Engine
+	cq        *CycleQueue
+	next      *Worker
+	prev      *Worker
+	isWorking int32
+	index     int
+	stoper    Stoper
 }
 
-func NewWorker(i int, eng *Engine) *Worker {
+func NewWorker(i int, eng *Engine, queueSize int) *Worker {
 	w := new(Worker)
 
 	w.eng = eng
-	w.cq = NewCycleQueueSize(minQueueSize)
+	w.cq = NewCycleQueueSize(queueSize)
 	w.index = i
 
 	return w
 }
 
 func (w *Worker) BusyLevel() int {
-	return 0
+	val := int(math.Ceil(float64(w.cq.ApproximatelySize()) / numberLevel))
+	if val > w.eng.maxLevel() {
+		return w.eng.maxLevel()
+	} else {
+		return val
+	}
 }
 
 func (w *Worker) Add(job *Job) bool {

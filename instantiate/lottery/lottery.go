@@ -136,6 +136,12 @@ func (l *Lottery) Register(name string, fn methodFn) error {
 }
 
 func (l *Lottery) Dispatch(p *model.Projects) error {
+	defer func() {
+		err := recover()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
 
 	name := utils.UcWords(p.GetString("customname"))
 	fn, exists := l.methods[name]

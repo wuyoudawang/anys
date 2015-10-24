@@ -23,17 +23,17 @@ func main() {
 	c := &config.Config{}
 	initMaster(c)
 
-	Shedule(c)
+	// Shedule(c)
 
-	// lcf := lottery.GetConf(c)
-	// last := 1
-	// for name, _ := range lcf.GetAllLottery() {
-	// 	if last == len(lcf.GetAllLottery()) {
-	// 		processLottery(c, name, 30)
-	// 	}
-	// 	go processLottery(c, name, 30)
-	// 	last++
-	// }
+	lcf := lottery.GetConf(c)
+	last := 1
+	for name, _ := range lcf.GetAllLottery() {
+		if last == len(lcf.GetAllLottery()) {
+			processLottery(c, name, 30)
+		}
+		go processLottery(c, name, 30)
+		last++
+	}
 
 	exitMaster(c)
 	fmt.Println("finish")

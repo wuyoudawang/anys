@@ -3,13 +3,15 @@ package jobs
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"sync/atomic"
 )
 
 const (
-	deltaJobs = 5
+	deltaJobs   = 5
+	numberLevel = 2
 )
 
 type Server interface {
@@ -68,6 +70,8 @@ type Engine struct {
 	servers       map[string]Server
 	restroom      *Restroom
 	list          *Worker
+	maxLv         int
+	thrs          int
 	wg            sync.WaitGroup
 	ch            chan *Job
 	maxGoroutines int
@@ -85,19 +89,25 @@ func NewEngine(n int) *Engine {
 	e.c = NewContainer()
 	e.restroom = &Restroom{}
 	e.restroom.q = NewQueue(n)
+	e.maxLv = 8 / numberLevel
+	e.thrs = int(math.Ceil(float64(e.maxLv) / numberLevel))
 	e.list = nil
 	e.ch = make(chan *Job, defaultGoRoutine*16)
 	e.servers = make(map[string]Server)
 
 	e.workers = make([]*Worker, n)
 	for i := 0; i < n; i++ {
-		worker := NewWorker(i, e)
+		worker := NewWorker(i, e, defaultQueueSize)
 		e.workers[i] = worker
 		e.restroom.Push(i)
 	}
 	e.wg.Add(n)
 
 	return e
+}
+
+func (e *Engine) workerQueueSize() int {
+	return (1 << defaultQueueSize)
 }
 
 func (e *Engine) NewJob(entity Entity, name string) *Job {
@@ -107,8 +117,16 @@ func (e *Engine) NewJob(entity Entity, name string) *Job {
 	return job
 }
 
+func (e *Engine) maxLevel() int {
+	return e.maxLv
+}
+
 func (e *Engine) Rest(index int) {
-	e.restroom.Push(index)
+	e.rest(e.workers[index])
+}
+
+func (e *Engine) threshold() int {
+	return e.thrs
 }
 
 func (e *Engine) Active(job *Job) {
@@ -203,15 +221,39 @@ func (e *Engine) processPosted() {
 }
 
 func (e *Engine) working(worker *Worker) {
-	var pos **Worker
-	pos = &(e.list)
+	if e.list == nil {
+		e.list = worker
+		e.list.prev = worker
+		e.list.next = worker
+	} else {
+		tmp := e.list
+		e.list = worker
+		e.list.next = tmp
+		e.list.prev = tmp.prev
+		tmp.prev.next = e.list
+		tmp.prev = e.list
+	}
+	atomic.StoreInt32(&worker.isWorking, 1)
+}
 
-	for w := e.list; w != nil; w = w.next {
-		pos = &w
+func (e *Engine) rest(worker *Worker) {
+	atomic.StoreInt32(&worker.isWorking, 0)
+	prev := worker.prev
+	next := worker.next
+	if prev == nil || next == nil {
+		return
 	}
 
-	*pos = worker
-
+	if (prev == next) && (prev == worker) {
+		e.list = nil
+	} else {
+		prev.next = next
+		next.prev = prev
+		if e.list == worker {
+			e.list = next
+		}
+	}
+	e.restroom.Push(worker.index)
 }
 
 func (e *Engine) schedule(job *Job) {
@@ -227,9 +269,18 @@ func (e *Engine) schedule(job *Job) {
 
 		joined := false
 		for worker := e.list; worker != nil; worker = worker.next {
+			if atomic.CompareAndSwapInt32(&worker.isWorking, 0, 0) {
+				continue
+			}
 
+			next := worker.next
 			if worker.Add(job) {
 				joined = true
+				e.list = worker
+				break
+			}
+
+			if e.list == next {
 				break
 			}
 		}
@@ -240,7 +291,7 @@ func (e *Engine) schedule(job *Job) {
 
 		size := len(e.workers)
 		if size < e.getMaxGoroutines() {
-			worker := NewWorker(size, e)
+			worker := NewWorker(size, e, defaultQueueSize)
 			e.workers = append(e.workers, worker)
 			worker.Add(job)
 			e.working(worker)
@@ -248,6 +299,7 @@ func (e *Engine) schedule(job *Job) {
 		}
 
 		// job.log()
+		fmt.Println("The task was abandoned")
 	}
 
 }

@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	minQueueSize     = 4
-	defaultQueueSize = 10
+	minQueueSize     = 2
+	defaultQueueSize = 3
 )
 
 type CycleQueue struct {
@@ -58,8 +58,19 @@ func (q *CycleQueue) Incr(val int) int {
 	return (val + 1) & (2*len(q.buf) - 1)
 }
 
-func (q *CycleQueue) Size() int {
-	return 0
+func (q *CycleQueue) ApproximatelySize() int {
+	if q.Empty() {
+		return 0
+	} else if q.Full() {
+		return len(q.buf) - 1
+	} else {
+		sub := q.w - q.r - 1
+		if sub < 0 {
+			return len(q.buf) + sub
+		} else {
+			return sub
+		}
+	}
 }
 
 func (q *CycleQueue) Push(job *Job) bool {

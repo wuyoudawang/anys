@@ -80,6 +80,6 @@ func (t *Timer) BeforePendingJob(job *jobs.Job) error {
 
 func (t *Timer) AfterPendingJob(job *jobs.Job) error {
 	t.setTimer()
-
+	fmt.Println("no timer")
 	return nil
 }

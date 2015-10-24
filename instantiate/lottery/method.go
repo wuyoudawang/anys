@@ -133,6 +133,10 @@ func (m *Method) CallOneNum(lty *Lottery, bet string, p *model.Projects) (error,
 
 func (m *Method) twoNum(lty *Lottery, bet string, p *model.Projects, frist, second int) (error, int) {
 	set := m.splitBit(bet)
+	if frist < 1 || second > len(set) {
+		return errBetFormat, cancle
+	}
+
 	one := set[frist-1]
 	two := set[second-1]
 
