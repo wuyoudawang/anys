@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"fmt"
 	"math"
 )
 
@@ -66,13 +67,14 @@ func (w *Worker) Run() {
 		}
 
 		isJobTime := false
-		if job.jobType&JobTicker > 0 {
+		if job.jobType&JobTicker == JobTicker {
 			newJob, err := job.Clone()
 			if err != nil {
 				continue
 			}
 
-			newJob.Pending()
+			err = newJob.Pending()
+			fmt.Println(err)
 			isJobTime = true
 		}
 
@@ -80,11 +82,11 @@ func (w *Worker) Run() {
 			job.exception(level)
 		}
 
-		if job.jobType&JobDown > 0 {
+		if job.jobType&JobDown == JobDown {
 			job.Extends(job.next)
 		}
 
-		if job.jobType&JobTimer > 0 {
+		if job.jobType&JobTimer == JobTimer {
 			job.Pending()
 			isJobTime = true
 		}

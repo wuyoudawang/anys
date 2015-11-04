@@ -62,11 +62,10 @@ func (t *Timer) setTimer() (int64, int64) {
 	t.mt.Lock()
 	defer t.mt.Unlock()
 	if timeout == jobs.TIME_INFINITY ||
-		(t.lastMinTimeout != jobs.TIME_INFINITY && t.lastMinTimeout >= now && timeout >= t.lastMinTimeout) {
+		(t.lastMinTimeout != jobs.TIME_INFINITY && t.lastMinTimeout >= now && timeout == t.lastMinTimeout) {
 
 		return now, timeout
 	} else if timeout > now {
-
 		t.lastMinTimeout = timeout
 		t.timer.Reset(time.Duration(timeout - now))
 	}
@@ -80,6 +79,6 @@ func (t *Timer) BeforePendingJob(job *jobs.Job) error {
 
 func (t *Timer) AfterPendingJob(job *jobs.Job) error {
 	t.setTimer()
-	fmt.Println("no timer")
+
 	return nil
 }

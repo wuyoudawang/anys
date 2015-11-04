@@ -234,18 +234,17 @@ func (j *Job) GetTimeout() int64 {
 	}
 
 	var interval int64
+	interval = j.interval.Nanoseconds()
 	if j.jobType&JobTicker > 0 {
 		if j.timeout > 0 {
-			interval = j.interval.Nanoseconds() - (now.UnixNano() - j.timeout)
-		} else {
-			interval = j.interval.Nanoseconds()
+			if now.UnixNano() > j.timeout {
+				interval = j.interval.Nanoseconds() - (now.UnixNano() - j.timeout)
+			}
 		}
-	} else {
-		interval = j.interval.Nanoseconds()
 	}
 
 	if interval > 0 {
-		return now.Add(time.Duration(interval)).UnixNano()
+		return now.Add(time.Duration(interval) * time.Nanosecond).UnixNano()
 	} else {
 		return 0
 	}
@@ -649,6 +648,7 @@ func (c *Container) Pending(job *Job) error {
 	if timeout != TIME_INFINITY {
 		if timeout == 0 {
 			job.eng.Active(job)
+			return nil
 		} else {
 			job.timeout = timeout
 			c.timersMt.Lock()

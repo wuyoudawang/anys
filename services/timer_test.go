@@ -20,7 +20,6 @@ func (t *testJob) Init(job *jobs.Job) (error, int) {
 
 func (t *testJob) Run(job *jobs.Job) (error, int) {
 	fmt.Println("running")
-	job.GetEngine().Pending(job)
 	return nil, 0
 }
 
@@ -43,7 +42,7 @@ func TestTimer(t *testing.T) {
 	eng.RegisterServer(NewLocalServer(eng, processSig, os.Interrupt), "sfe")
 
 	job := eng.NewJob(&testJob{}, "test")
-	job.SetTimeout(4 * time.Second)
+	job.Ticker(4 * time.Second)
 	eng.Pending(job)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

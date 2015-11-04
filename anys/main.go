@@ -23,20 +23,40 @@ func main() {
 	c := &config.Config{}
 	initMaster(c)
 
-	// Shedule(c)
+	Shedule(c)
+
+	ccssj := model.NewLottery()
+	ccssj.Load(1)
+	go generateIssue(ccssj, 60*60*10)
 
 	lcf := lottery.GetConf(c)
 	last := 1
-	for name, _ := range lcf.GetAllLottery() {
+	for name, lty := range lcf.GetAllLottery() {
 		if last == len(lcf.GetAllLottery()) {
 			processLottery(c, name, 30)
 		}
 		go processLottery(c, name, 30)
+		go generateIssue(lty.GetLotteryModel(), 60*60*10)
 		last++
 	}
 
 	exitMaster(c)
 	fmt.Println("finish")
+}
+
+func generateIssue(ltyM *model.Lottery, interval time.Duration) {
+	ltyM.AutoClearIssues()
+	if err := ltyM.AutoGenerateIssues(); err != nil {
+		log.Warning("%d奖期自动生成产生错误：%s", ltyM.GetId(), err.Error())
+	}
+
+	ticker := time.NewTicker(interval * time.Second)
+	for range ticker.C {
+		ltyM.AutoClearIssues()
+		if err := ltyM.AutoGenerateIssues(); err != nil {
+			log.Warning("奖期自动生成产生错误：%s", err.Error())
+		}
+	}
 }
 
 func processLottery(c *config.Config, name string, interval time.Duration) {

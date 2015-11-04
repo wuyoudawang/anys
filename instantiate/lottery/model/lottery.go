@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"anys/pkg/utils"
@@ -46,7 +47,7 @@ func (l *Lottery) GetLotteryIdByName(name string) *db.Item {
 	return nil
 }
 
-func (l *Lottery) GetIssueset() (dst map[string]interface{}) {
+func (l *Lottery) GetIssueset() (rel []map[string]interface{}) {
 	if l.GetId() == 0 {
 		return
 	}
@@ -58,8 +59,32 @@ func (l *Lottery) GetIssueset() (dst map[string]interface{}) {
 		return
 	}
 
-	dst = v.(map[string]interface{})
-	return
+	dst := v.(map[string]interface{})
+	rel = make([]map[string]interface{}, len(dst))
+	sortKeys := make([]string, len(dst))
+	i := 0
+	for key, _ := range dst {
+		pos := i
+		for j := 0; j < i; j++ {
+			val1, _ := strconv.Atoi(key)
+			val2, _ := strconv.Atoi(sortKeys[j])
+			if val1 < val2 {
+				for k := i; k > j; k-- {
+					sortKeys[k] = sortKeys[k-1]
+				}
+				pos = j
+				break
+			}
+		}
+		sortKeys[pos] = key
+		i++
+	}
+
+	for i, key := range sortKeys {
+		rel[i] = (dst[key]).(map[string]interface{})
+	}
+
+	return rel
 }
 
 func (l *Lottery) AutoGenerateIssues() error {
@@ -75,11 +100,12 @@ func (l *Lottery) AutoGenerateIssues() error {
 
 	issueset := l.GetIssueset()
 	transaction := l.GetResource().BeginTransaction()
+	l.SetTransaction(transaction)
 	defer transaction.Commit()
 
 	id := 1
 	for _, item := range issueset {
-		set := item.(map[string]interface{})
+		set := item
 		val, exist := set["starttime"]
 		if !exist {
 			goto invalidError
@@ -98,6 +124,15 @@ func (l *Lottery) AutoGenerateIssues() error {
 			goto invalidError
 		}
 
+		val, exist = set["firstendtime"]
+		if !exist {
+			goto invalidError
+		}
+		firstEndTime, err := time.Parse("2006-01-02 15:04:05", fmt.Sprintf("%s %s", now.Format("2006-01-02"), val.(string)))
+		if err != nil {
+			goto invalidError
+		}
+
 		val, exist = set["droptime"]
 		if !exist {
 			goto invalidError
@@ -112,19 +147,18 @@ func (l *Lottery) AutoGenerateIssues() error {
 		cycle := val.(int64)
 		cycle *= int64(time.Second)
 
-		s := starttime
-		e := starttime
+		issue := fmt.Sprintf("%s%04d", prefix, id)
+		id++
+		err = l.CreateCurrentIssue(issue, starttime, firstEndTime, now, droptime)
+		if err != nil {
+			return err
+		}
+
+		s := firstEndTime
+		e := firstEndTime
 		for e = s.Add(time.Duration(cycle)); e.Before(endtime) || e.Equal(endtime); e = s.Add(time.Duration(cycle)) {
-			issueinfo := NewIssueinfo()
 			issue := fmt.Sprintf("%s%04d", prefix, id)
-			issueinfo.SetData("issue", issue)
-			issueinfo.SetData("salestart", s.Format("2006-01-02 15:04:05"))
-			issueinfo.SetData("saleend", e.Format("2006-01-02 15:04:05"))
-			issueinfo.SetData("canneldeadline", s.Add(time.Duration(droptime)).Format("2006-01-02 15:04:05"))
-			issueinfo.SetData("lotteryid", l.GetInt64("lotteryid"))
-			issueinfo.SetData("belongdate", now.Format("2006-01-02"))
-			issueinfo.SetTransaction(transaction)
-			err := issueinfo.Save()
+			err := l.CreateCurrentIssue(issue, s, e, now, droptime)
 			if err != nil {
 				return err
 			}
@@ -138,6 +172,18 @@ func (l *Lottery) AutoGenerateIssues() error {
 invalidError:
 	transaction.Rollback()
 	return fmt.Errorf("invalid issue set")
+}
+
+func (l *Lottery) CreateCurrentIssue(issueNumber string, s, e, now time.Time, droptime int64) error {
+	issueinfo := NewIssueinfo()
+	issueinfo.SetData("issue", issueNumber)
+	issueinfo.SetData("salestart", s.Format("2006-01-02 15:04:05"))
+	issueinfo.SetData("saleend", e.Format("2006-01-02 15:04:05"))
+	issueinfo.SetData("canneldeadline", e.Add(time.Duration(droptime)).Format("2006-01-02 15:04:05"))
+	issueinfo.SetData("lotteryid", l.GetInt64("lotteryid"))
+	issueinfo.SetData("belongdate", now.Format("2006-01-02"))
+	issueinfo.SetTransaction(l.GetTransaction())
+	return issueinfo.Save()
 }
 
 func (l *Lottery) AutoClearIssues() {
