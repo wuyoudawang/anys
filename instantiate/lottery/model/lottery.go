@@ -2,7 +2,9 @@ package model
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"anys/pkg/utils"
@@ -87,9 +89,29 @@ func (l *Lottery) GetIssueset() (rel []map[string]interface{}) {
 	return rel
 }
 
+func (l *Lottery) IssueFormat() (prefix, format string) {
+	src := l.GetString("issuerule")
+	reg := regexp.MustCompile(`(.*)\[n([0-9]+)\]`)
+	matchs := reg.FindStringSubmatch(src)
+	format = "%s%d"
+	if len(matchs) == 3 {
+		prefix = strings.Replace(matchs[1], "Y", "2006", -1)
+		prefix = strings.Replace(prefix, "m", "01", -1)
+		prefix = strings.Replace(prefix, "d", "02", -1)
+		prefix = strings.Replace(prefix, "H", "15", -1)
+		prefix = strings.Replace(prefix, "i", "04", -1)
+		prefix = strings.Replace(prefix, "s", "05", -1)
+		format = "%s%0" + matchs[2] + "d"
+	} else {
+		fmt.Println(l.GetString("cnname"), src, "格式有错误")
+	}
+	return
+}
+
 func (l *Lottery) AutoGenerateIssues() error {
 	now := time.Now().Add(24 * time.Hour)
-	prefix := now.Format("20060102")
+	pf, format := l.IssueFormat()
+	prefix := now.Format(pf)
 	ise := NewIssueinfo()
 	ise.SetData("lotteryid", l.GetId())
 	ise.SetData("belongdate", now.Format("2006-01-02"))
@@ -104,6 +126,7 @@ func (l *Lottery) AutoGenerateIssues() error {
 	defer transaction.Commit()
 
 	id := 1
+
 	for _, item := range issueset {
 		set := item
 		val, exist := set["starttime"]
@@ -147,7 +170,7 @@ func (l *Lottery) AutoGenerateIssues() error {
 		cycle := val.(int64)
 		cycle *= int64(time.Second)
 
-		issue := fmt.Sprintf("%s%04d", prefix, id)
+		issue := fmt.Sprintf(format, prefix, id)
 		id++
 		err = l.CreateCurrentIssue(issue, starttime, firstEndTime, now, droptime)
 		if err != nil {
@@ -157,7 +180,7 @@ func (l *Lottery) AutoGenerateIssues() error {
 		s := firstEndTime
 		e := firstEndTime
 		for e = s.Add(time.Duration(cycle)); e.Before(endtime) || e.Equal(endtime); e = s.Add(time.Duration(cycle)) {
-			issue := fmt.Sprintf("%s%04d", prefix, id)
+			issue := fmt.Sprintf(format, prefix, id)
 			err := l.CreateCurrentIssue(issue, s, e, now, droptime)
 			if err != nil {
 				return err

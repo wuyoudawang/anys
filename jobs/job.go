@@ -683,7 +683,8 @@ func (c *Container) ProcessExpireTimer(now int64) {
 		item := c.timers.minHeapTop()
 		job := item.(*Job)
 
-		if job.timeout > now {
+		if job.timeout-now > int64(time.Second) {
+			fmt.Println(job.timeout, now, job.timeout-now)
 			break
 		}
 

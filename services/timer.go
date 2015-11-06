@@ -37,16 +37,7 @@ func (t *Timer) Serve() {
 			break
 		}
 
-		now, timeout := t.setTimer()
-
-		if timeout == jobs.TIME_INFINITY {
-			t.timer.Stop()
-		} else if timeout <= now {
-
-			t.eng.ProcessExpireTimer(now)
-			continue
-		}
-
+		t.setTimer()
 		st := <-t.timer.C
 		fmt.Println(st)
 		t.eng.ProcessExpireTimer(st.UnixNano())
@@ -55,22 +46,21 @@ func (t *Timer) Serve() {
 
 }
 
-func (t *Timer) setTimer() (int64, int64) {
+func (t *Timer) setTimer() {
 	timeout := t.eng.MinTimeout()
-	now := time.Now().UnixNano()
-
 	t.mt.Lock()
 	defer t.mt.Unlock()
-	if timeout == jobs.TIME_INFINITY ||
-		(t.lastMinTimeout != jobs.TIME_INFINITY && t.lastMinTimeout >= now && timeout == t.lastMinTimeout) {
 
-		return now, timeout
+	now := time.Now().UnixNano()
+	if timeout == jobs.TIME_INFINITY {
+		t.lastMinTimeout = jobs.TIME_INFINITY
+		t.timer.Stop()
 	} else if timeout > now {
 		t.lastMinTimeout = timeout
 		t.timer.Reset(time.Duration(timeout - now))
+	} else {
+		t.eng.ProcessExpireTimer(now)
 	}
-
-	return now, timeout
 }
 
 func (t *Timer) BeforePendingJob(job *jobs.Job) error {
