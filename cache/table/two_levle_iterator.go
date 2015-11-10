@@ -11,7 +11,7 @@ type twoLevelIterator struct {
 	indexIter       iterator.Interface
 	blockIter       iterator.Interface
 	err             error
-	readOpt         *option.Options
+	readOpt         *option.ReadOptions
 	dataBlockHandle []byte
 }
 
@@ -22,15 +22,47 @@ func NewTwoLevelIterator(indexIter iterator.Interface, opt *option.ReadOptions) 
 	}
 }
 
+func (tli *twoLevelIterator) Error() error {
+	return tli.err
+}
+
+func (tli *twoLevelIterator) First() {
+
+}
+
+func (tli *twoLevelIterator) Last() {
+
+}
+
 func (tli *twoLevelIterator) Seek(target []byte) {
 	tli.indexIter.Seek(target)
 
+}
+
+func (tli *twoLevelIterator) Next() {
+
+}
+
+func (tli *twoLevelIterator) Prev() {
+
+}
+
+func (tli *twoLevelIterator) Key() []byte {
+	return nil
+}
+
+func (tli *twoLevelIterator) Value() []byte {
+	return nil
 }
 
 func (tli *twoLevelIterator) saveError(err error) {
 	if tli.err == nil && err != nil {
 		tli.err = err
 	}
+}
+
+func (tli *twoLevelIterator) Valid() bool {
+	return false
 }
 
 func (tli *twoLevelIterator) setBlockIter(iter iterator.Interface) {

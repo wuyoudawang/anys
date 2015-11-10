@@ -295,6 +295,7 @@ func (e *Engine) schedule(job *Job) {
 			e.workers = append(e.workers, worker)
 			worker.Add(job)
 			e.working(worker)
+			e.wg.Add(1)
 			go worker.Run()
 		}
 

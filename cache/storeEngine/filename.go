@@ -24,41 +24,41 @@ func makeFileName(dbname string, number uint64, suffix string) string {
 	)
 }
 
-func logFileName(dbname string, number uint64) string {
+func LogFileName(dbname string, number uint64) string {
 	return makeFileName(dbname, number, "log")
 }
 
-func tableFileName(dbname string, number uint64) string {
+func TableFileName(dbname string, number uint64) string {
 	return makeFileName(dbname, number, "ldb")
 }
 
-func sstTableFileName(dbname string, number uint64) string {
+func SstTableFileName(dbname string, number uint64) string {
 	return makeFileName(dbname, number, "sst")
 }
 
-func currentFileName(dbname string) string {
+func CurrentFileName(dbname string) string {
 	return dbname + "/CURRENT"
 }
 
-func descriptorFileName(dbname string, number uint64) string {
+func DescriptorFileName(dbname string, number uint64) string {
 	return fmt.Sprintf("%s/MANIFEST-%06llu",
 		dbname,
 		number)
 }
 
-func lockFileName(dbname string) string {
+func LockFileName(dbname string) string {
 	return dbname + "/LOCK"
 }
 
-func tempFileName(dbname string, number uint64) string {
+func TempFileName(dbname string, number uint64) string {
 	return makeFileName(dbname, number, "dbtmp")
 }
 
-func infoLogFileName(dbname string) string {
+func InfoLogFileName(dbname string) string {
 	return dbname + "/LOG"
 }
 
-func oldInfoLogFileName(dbname string) string {
+func OldInfoLogFileName(dbname string) string {
 	return dbname + "/LOG.old"
 }
 

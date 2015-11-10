@@ -50,6 +50,7 @@ func (c CRC) Value() uint32 {
 	return uint32(c>>15|c<<17) + 0xa282ead8
 }
 
+// 用循环双链表实现lru
 type LruNode struct {
 	value   interface{}
 	deleter func([]byte, interface{})
@@ -73,17 +74,8 @@ func (n *LruNode) insert(newNode *LruNode) {
 }
 
 func (n *LruNode) delete() {
-	if n.prev != nil {
-		pre := n.prev
-		pre.next = n.next
-	}
-
-	if n.next != nil {
-		n.next.prev = n.prev
-	}
-
-	n.prev = nil
-	n.next = nil
+	n.next.prev = n.prev
+	n.prev.next = n.next
 }
 
 type LruTable struct {
@@ -92,6 +84,7 @@ type LruTable struct {
 	list   []*LruNode
 }
 
+// hash列表，碰撞用链表解决
 func NewLruTable() *LruTable {
 	lt := new(LruTable)
 	lt.length = 0
@@ -163,6 +156,7 @@ func (lt *LruTable) Delete(key []byte, hash uint32) *LruNode {
 	return result
 }
 
+// 线程安全的lru缓存
 type LruCache struct {
 	m        sync.Mutex
 	lru      LruNode
@@ -209,11 +203,34 @@ func (lc *LruCache) Delete(key []byte, hash uint32) {
 	}
 }
 
-func (lc *LruCache) Insert(node *LruNode) {
+func (lc *LruCache) Insert(key []byte, value interface{}, h uint32, charge int, deleter func([]byte, interface{})) *LruNode {
 	lc.m.Lock()
 	defer lc.m.Unlock()
 
-	node.insert(&(lc.lru))
+	node := new(LruNode)
+	node.key = key
+	node.value = value
+	node.hash = h
+	node.deleter = deleter
+	node.charge = charge
+	node.refs = 2 // one from LruCache, one for the returned node
+	node.insert(&lc.lru)
+	lc.used += charge
+
+	old := lc.table.Insert(node)
+	if old != nil {
+		old.delete()
+		lc.unref(node)
+	}
+
+	for lc.used > lc.capacity && lc.lru.next != &lc.lru {
+		old := lc.lru.next
+		old.delete()
+		lc.table.Delete(old.key, old.hash)
+		lc.unref(node)
+	}
+
+	return node
 }
 
 func (lc *LruCache) Lookup(key []byte, hash uint32) *LruNode {
@@ -228,6 +245,58 @@ func (lc *LruCache) Lookup(key []byte, hash uint32) *LruNode {
 	}
 
 	return node
+}
+
+func (lc *LruCache) Erase(key []byte, hash uint32) {
+	lc.m.Lock()
+	e := lc.table.Delete(key, hash)
+	if e != nil {
+		e.delete()
+		lc.unref(e)
+	}
+}
+
+const (
+	kNumShardBits = 4
+	kNumShards    = 1 << kNumShardBits
+)
+
+// 提高并发，减少互斥锁
+type ShardedLruCache struct {
+	shardC [kNumShards]LruCache
+	lastId uint64
+	mu     sync.Mutex
+}
+
+func (*ShardedLruCache) hash(src []byte) uint32 {
+	return Hash(src, 0)
+}
+
+func (*ShardedLruCache) shard(h uint32) uint32 {
+	return h >> (32 - kNumShardBits)
+}
+
+func (slc *ShardedLruCache) Insert(key []byte, value interface{}, charge int, deleter func([]byte, interface{})) *LruNode {
+	h := slc.hash(key)
+	return slc.shardC[slc.shard(h)].Insert(key, value, h, charge, deleter)
+}
+
+func (slc *ShardedLruCache) Lookup(key []byte) *LruNode {
+	h := slc.hash(key)
+	return slc.shardC[slc.shard(h)].Lookup(key, h)
+}
+
+func (slc *ShardedLruCache) Release(node *LruNode) {
+	slc.shardC[slc.shard(node.hash)].Release(node)
+}
+
+func (slc *ShardedLruCache) Erase(key []byte) {
+	h := slc.hash(key)
+	slc.shardC[slc.shard(h)].Erase(key, h)
+}
+
+func (slc *ShardedLruCache) Value(node *LruNode) interface{} {
+	return node.value
 }
 
 func PutLenPrefixedBytes(dst, src *[]byte) int {

@@ -18,6 +18,8 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 	"github.com/syndtr/goleveldb/leveldb/util"
+
+	"anys/cache/option"
 )
 
 var (
@@ -567,9 +569,9 @@ func (r *Reader) readRawBlock(bh blockHandle, verifyChecksum bool) ([]byte, erro
 	}
 
 	switch data[bh.length] {
-	case blockTypeNoCompression:
+	case option.KNoCompression:
 		data = data[:bh.length]
-	case blockTypeSnappyCompression:
+	case option.KSnappyCompression:
 		decLen, err := snappy.DecodedLen(data[:bh.length])
 		if err != nil {
 			return nil, r.newErrCorruptedBH(bh, err.Error())

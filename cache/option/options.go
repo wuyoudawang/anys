@@ -1,7 +1,13 @@
 package option
 
 import (
+	"anys/cache/filter"
 	"anys/pkg/comparator"
+)
+
+const (
+	KNoCompression     = 0x00
+	KSnappyCompression = 0x01
 )
 
 type Options struct {
@@ -79,7 +85,7 @@ type Options struct {
 	// compression is enabled.  This parameter can be changed dynamically.
 	//
 	// Default: 4K
-	BlockSize int64
+	BlockSize int
 
 	// Number of keys between restart points for delta encoding of keys.
 	// This parameter can be changed dynamically.  Most clients should
@@ -103,6 +109,8 @@ type Options struct {
 	// incompressible, the kSnappyCompression implementation will
 	// efficiently detect that and will switch to uncompressed mode.
 	CompressionType int
+
+	Filter filter.Filter
 }
 
 func NewOptions() *Options {
@@ -115,7 +123,7 @@ func NewOptions() *Options {
 	opt.MaxOpenFiles = 1000
 	opt.BlockSize = 4096
 	opt.BlockRestartInterval = 16
-	opt.CompressionType = 1
+	opt.CompressionType = KSnappyCompression
 	return opt
 }
 

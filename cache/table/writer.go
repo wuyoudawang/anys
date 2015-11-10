@@ -5,6 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/golang/snappy"
+
+	"anys/cache/filter"
+	"anys/cache/option"
+	"anys/pkg/comparator"
+	"anys/pkg/utils"
 )
 
 func sharedPrefixLen(a, b []byte) int {
@@ -20,7 +27,7 @@ func sharedPrefixLen(a, b []byte) int {
 
 type blockWriter struct {
 	restartInterval int
-	buf             util.Buffer
+	buf             utils.Buffer
 	nEntries        int
 	prevKey         []byte
 	restarts        []uint32
@@ -63,7 +70,7 @@ func (bw *blockWriter) reset() {
 	bw.restarts = bw.restarts[:0]
 }
 
-func (bw *blockWriter) bytesLen() {
+func (bw *blockWriter) bytesLen() int {
 	restartsLen := len(bw.restarts)
 	if restartsLen == 0 {
 		restartsLen = 1
@@ -73,13 +80,13 @@ func (bw *blockWriter) bytesLen() {
 
 type filterWriter struct {
 	generator filter.FilterGenerator
-	buf       util.Buffer
+	buf       utils.Buffer
 	nKeys     int
 	offsets   []uint32
 }
 
 func (fw *filterWriter) add(key []byte) {
-	if w.generator == nil {
+	if fw.generator == nil {
 		return
 	}
 	fw.generator.Add(key)
@@ -102,7 +109,7 @@ func (fw *filterWriter) finish() {
 	// Generate last keys.
 
 	if fw.nKeys > 0 {
-		w.generate()
+		fw.generate()
 	}
 	fw.offsets = append(fw.offsets, uint32(fw.buf.Len()))
 	for _, x := range fw.offsets {
@@ -126,10 +133,10 @@ type Writer struct {
 	writer io.Writer
 	err    error
 	// Options
-	cmp         comparer.Comparer
-	filter      filter.Filter
-	compression opt.Compression
-	blockSize   int
+	cmp             comparator.Comparator
+	filter          filter.Filter
+	compressionType int
+	blockSize       int
 
 	dataBlock   blockWriter
 	indexBlock  blockWriter
@@ -145,10 +152,10 @@ type Writer struct {
 	compressionScratch []byte
 }
 
-func (w *Writer) writeBlock(buf *util.Buffer, compression opt.Compression) (bh blockHandle, err error) {
+func (w *Writer) writeBlock(buf *utils.Buffer, cprt int) (bh blockHandle, err error) {
 	// Compress the buffer if necessary.
 	var b []byte
-	if compression == opt.SnappyCompression {
+	if cprt == option.KSnappyCompression {
 		// Allocate scratch enough for compression and block trailer.
 		if n := snappy.MaxEncodedLen(buf.Len()) + blockTrailerLen; len(w.compressionScratch) < n {
 			w.compressionScratch = make([]byte, n)
@@ -156,16 +163,16 @@ func (w *Writer) writeBlock(buf *util.Buffer, compression opt.Compression) (bh b
 		compressed := snappy.Encode(w.compressionScratch, buf.Bytes())
 		n := len(compressed)
 		b = compressed[:n+blockTrailerLen]
-		b[n] = blockTypeSnappyCompression
+		b[n] = option.KSnappyCompression
 	} else {
 		tmp := buf.Alloc(blockTrailerLen)
-		tmp[0] = blockTypeNoCompression
+		tmp[0] = option.KNoCompression
 		b = buf.Bytes()
 	}
 
 	// Calculate the checksum.
 	n := len(b) - 4
-	checksum := util.NewCRC(b[:n]).Value()
+	checksum := utils.NewCRC(b[:n]).Value()
 	binary.LittleEndian.PutUint32(b[n:], checksum)
 
 	// Write the buffer to the file.
@@ -204,7 +211,7 @@ func (w *Writer) flushPendingBH(key []byte) {
 
 func (w *Writer) finishBlock() error {
 	w.dataBlock.finish()
-	bh, err := w.writeBlock(&w.dataBlock.buf, w.compression)
+	bh, err := w.writeBlock(&w.dataBlock.buf, w.compressionType)
 	if err != nil {
 		return err
 	}
@@ -288,7 +295,7 @@ func (w *Writer) Close() error {
 	var filterBH blockHandle
 	w.filterBlock.finish()
 	if buf := &w.filterBlock.buf; buf.Len() > 0 {
-		filterBH, w.err = w.writeBlock(buf, opt.NoCompression)
+		filterBH, w.err = w.writeBlock(buf, option.KNoCompression)
 		if w.err != nil {
 			return w.err
 		}
@@ -301,7 +308,7 @@ func (w *Writer) Close() error {
 		w.dataBlock.append(key, w.scratch[:n])
 	}
 	w.dataBlock.finish()
-	metaindexBH, err := w.writeBlock(&w.dataBlock.buf, w.compression)
+	metaindexBH, err := w.writeBlock(&w.dataBlock.buf, w.compressionType)
 	if err != nil {
 		w.err = err
 		return w.err
@@ -309,7 +316,7 @@ func (w *Writer) Close() error {
 
 	// Write the index block.
 	w.indexBlock.finish()
-	indexBH, err := w.writeBlock(&w.indexBlock.buf, w.compression)
+	indexBH, err := w.writeBlock(&w.indexBlock.buf, w.compressionType)
 	if err != nil {
 		w.err = err
 		return w.err
@@ -336,17 +343,17 @@ func (w *Writer) Close() error {
 // NewWriter creates a new initialized table writer for the file.
 //
 // Table writer is not goroutine-safe.
-func NewWriter(f io.Writer, o *opt.Options) *Writer {
+func NewWriter(f io.Writer, opt *option.Options) *Writer {
 	w := &Writer{
 		writer:          f,
-		cmp:             o.GetComparer(),
-		filter:          o.GetFilter(),
-		compression:     o.GetCompression(),
-		blockSize:       o.GetBlockSize(),
+		cmp:             opt.Compare,
+		filter:          opt.Filter,
+		compressionType: opt.CompressionType,
+		blockSize:       opt.BlockSize,
 		comparerScratch: make([]byte, 0),
 	}
 	// data block
-	w.dataBlock.restartInterval = o.GetBlockRestartInterval()
+	w.dataBlock.restartInterval = opt.BlockRestartInterval
 	// The first 20-bytes are used for encoding block handle.
 	w.dataBlock.scratch = w.scratch[20:]
 	// index block

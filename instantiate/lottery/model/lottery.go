@@ -93,6 +93,7 @@ func (l *Lottery) IssueFormat() (prefix, format string) {
 	src := l.GetString("issuerule")
 	reg := regexp.MustCompile(`(.*)\[n([0-9]+)\]`)
 	matchs := reg.FindStringSubmatch(src)
+	prefix = "20060102"
 	format = "%s%d"
 	if len(matchs) == 3 {
 		prefix = strings.Replace(matchs[1], "Y", "2006", -1)
