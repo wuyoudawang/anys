@@ -2,6 +2,7 @@ package cache
 
 import (
 	"sync"
+	"time"
 	"unsafe"
 
 	"anys/cache/log"
@@ -46,14 +47,16 @@ type BatchWriter struct {
 }
 
 type DB struct {
-	mem      *MemTable
-	imm      *MemTable
-	log      *log.Writer
-	mu       sync.Mutex
-	tmpBatch *Batch
-	storages storeEngine.Interface
-	opt      *Options
-	writes   *utils.Queue
+	mem            *MemTable
+	imm            *MemTable
+	log            *log.Writer
+	mu             sync.Mutex
+	tmpBatch       *Batch
+	storages       storeEngine.Interface
+	opt            *Options
+	writes         *utils.Queue
+	version        *VersionSet
+	pending_output []uint64
 }
 
 func (d *DB) AddStorage() {
@@ -310,4 +313,16 @@ func (d *DB) makeRoomForWrite(force bool) {
 	//   }
 	// }
 	// return s;
+}
+
+func (d *DB) WriteLevel0Table(mem *MemTable, edit *versionEdit, base *Version) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	startMicros := time.Now().Nanosecond() / 1000
+	var meta fileMetaData
+	meta.number = d.version.NewFileNumber()
+	d.pending_output = append(meta.number)
+	iter := mem.Iterator()
+	//log(options_.info_log, "Level-0 table #%llu: started",(unsigned long long) meta.number)
 }

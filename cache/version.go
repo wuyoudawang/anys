@@ -186,7 +186,7 @@ func (v *Version) Unref() {
 	v.refs--
 }
 
-type VesionSet struct {
+type VersionSet struct {
 	dbname         string
 	opt            *option.Options
 	nextFileNumber uint64
@@ -194,4 +194,44 @@ type VesionSet struct {
 	lastSequence   uint64
 	logNumber      uint64
 	prevLogNumber  uint64
+
+	current *Version
+}
+
+func NewVersionSet() {
+	return &VersionSet{
+		lastSequence: 0,
+	}
+}
+
+func (vs *VersionSet) NewFileNumber() uint64 {
+	cur := vs.nextFileNumber
+	vs.nextFileNumber++
+	return cur
+}
+
+func (vs *VersionSet) PrevLogNumber() uint64 {
+	return vs.prevLogNumber
+}
+
+func (vs *VersionSet) LogNUmber() uint64 {
+	return vs.logNumber
+}
+
+func (vs *VersionSet) LastSequence() uint64 {
+	return vs.lastSequence
+}
+
+func (vs *VersionSet) SetLastSequence(val uint64) {
+	if val > vs.lastSequence {
+		vs.lastSequence = val
+	}
+}
+
+func (vs *VersionSet) NumLevelFiles(level int) int {
+	if level >= 0 && level <= kNumLevels {
+		return vs.current.files[level].fileSize
+	} else {
+		return 0
+	}
 }
