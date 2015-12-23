@@ -17,11 +17,14 @@ func (t *TestEventer) Say() {
 
 func TestEvent(t *testing.T) {
 	ter := new(TestEventer)
-	ter.AddEventListener("say", func(obj *TestEventer, name string) {
+	fn := func(obj *TestEventer, name string) {
 		fmt.Println(obj.name)
 		obj.name = name
 		t.Log(name)
-	})
+	}
+	ter.AddEventListener("say", fn)
+	ter.AddEventListener("say", fn)
+	ter.RemoveEventListener("say", fn)
 	ter.Say()
 	fmt.Println(ter.name)
 }

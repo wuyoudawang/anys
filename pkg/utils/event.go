@@ -25,7 +25,7 @@ func (e *Event) AddEventListener(typ string, i interface{}) {
 func (e *Event) RemoveEventListener(typ string, i interface{}) {
 	idx := e.IndexOf(typ, i)
 	if idx != -1 {
-		for idx < len(e.listeners[typ]) {
+		for idx < len(e.listeners[typ])-1 {
 			e.listeners[typ][idx] = e.listeners[typ][idx+1]
 			idx++
 		}
