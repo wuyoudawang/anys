@@ -325,4 +325,6 @@ func (d *DB) WriteLevel0Table(mem *MemTable, edit *versionEdit, base *Version) {
 	d.pending_output = append(meta.number)
 	iter := mem.Iterator()
 	//log(options_.info_log, "Level-0 table #%llu: started",(unsigned long long) meta.number)
+	d.mu.Unlock()
+
 }

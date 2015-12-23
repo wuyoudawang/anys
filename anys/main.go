@@ -23,20 +23,20 @@ func main() {
 	c := &config.Config{}
 	initMaster(c)
 
-	Shedule(c)
+	// Shedule(c)
 
-	ccssj := model.NewLottery()
-	ccssj.Load(1)
-	go generateIssue(ccssj, 60*60*10)
+	// ccssj := model.NewLottery()
+	// ccssj.Load(1)
+	// go generateIssue(ccssj, 60*60*10)
 
 	lcf := lottery.GetConf(c)
 	last := 1
-	for name, lty := range lcf.GetAllLottery() {
+	for name, _ /*lty*/ := range lcf.GetAllLottery() {
 		if last == len(lcf.GetAllLottery()) {
 			processLottery(c, name, 30)
 		}
 		go processLottery(c, name, 30)
-		go generateIssue(lty.GetLotteryModel(), 60*60*10)
+		// go generateIssue(lty.GetLotteryModel(), 60*60*10)
 		last++
 	}
 

@@ -239,12 +239,13 @@ func (j *Job) GetTimeout() int64 {
 		if j.timeout > 0 {
 			if now.UnixNano() > j.timeout {
 				interval = j.interval.Nanoseconds() - (now.UnixNano() - j.timeout)
+				fmt.Println(interval)
 			}
 		}
 	}
 
 	if interval > 0 {
-		return now.Add(time.Duration(interval) * time.Nanosecond).UnixNano()
+		return now.Add(time.Duration(interval)).UnixNano()
 	} else {
 		return 0
 	}
@@ -683,7 +684,7 @@ func (c *Container) ProcessExpireTimer(now int64) {
 		item := c.timers.minHeapTop()
 		job := item.(*Job)
 
-		if job.timeout-now > int64(time.Second) {
+		if job.timeout-now > int64(time.Millisecond) {
 			fmt.Println(job.timeout, now, job.timeout-now)
 			break
 		}

@@ -262,6 +262,12 @@ func (p *Projects) CustomRebate(rule string) {
 }
 
 func (p *Projects) Rebate() error {
+	u := NewUsers()
+	u.Load(p.GetInt("userid"))
+	if u.GetInt("close_rebate") == 1 {
+		return nil
+	}
+
 	var (
 		point float64
 	)
