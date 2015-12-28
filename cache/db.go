@@ -57,6 +57,8 @@ type DB struct {
 	writes         *utils.Queue
 	version        *VersionSet
 	pending_output []uint64
+	dbname         string
+	table_cache    *tableCache
 }
 
 func (d *DB) AddStorage() {
@@ -326,5 +328,35 @@ func (d *DB) WriteLevel0Table(mem *MemTable, edit *versionEdit, base *Version) {
 	iter := mem.Iterator()
 	//log(options_.info_log, "Level-0 table #%llu: started",(unsigned long long) meta.number)
 	d.mu.Unlock()
+	err := buildTable(d.dbname, d.opt, d.table_cache, iter, meta)
+	if err != nil {
+		return err
+	}
+	d.mu.Lock()
 
+	d.pending_output[meta.number] //delete this meta pending
+
+	level := 0
+	if meta.fileSize > 0 {
+		min_user_key := meta.smallest.userKey()
+		max_user_key := meta.largest.userKey()
+		if base != nil {
+			level = base.fileToStrageLevel
+		}
+		edit.AddFile(level, meta.number, meta.fileSize, meta.smallest, meta.largest)
+	}
+}
+
+func (d *DB) CompactMemTable() {
+	var edit versionEdit
+	base := d.version.current
+	base.Ref()
+	d.WriteLevel0Table(d.mem, &edit, base)
+	base.Unref()
+
+	if err == nil {
+		edit.SetPrevLogNumber(0)
+		edit.SetLogNumber(d.logfile_number)
+		err = d.version.LogAndApply(edit, &d.mu)
+	}
 }

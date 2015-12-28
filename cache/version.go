@@ -2,8 +2,10 @@ package cache
 
 import (
 	"encoding/binary"
+	"sync"
 
 	"anys/cache/iterator"
+	"anys/cache/log"
 	"anys/cache/option"
 	"anys/pkg/comparator"
 )
@@ -159,13 +161,15 @@ func (vi *versionIterator) Error() error {
 }
 
 type Version struct {
-	vset              *VesionSet
-	prev              *Version
-	next              *Version
-	refs              int
-	files             [kNumLevels]*fileMetaData
-	fileToStrage      *fileMetaData
-	fileToStrageLevel int
+	vset               *VesionSet
+	prev               *Version
+	next               *Version
+	refs               int
+	files              [kNumLevels]*fileMetaData
+	fileToCompact      *fileMetaData
+	fileToCompactLevel int
+	compactionScore    int64
+	compactionLevel    int
 }
 
 func (v *Version) NewConcatenatingIterator(readOpt *option.ReadOptions, level int) {
@@ -195,7 +199,10 @@ type VersionSet struct {
 	logNumber      uint64
 	prevLogNumber  uint64
 
-	current *Version
+	current         *Version
+	dummy_version   *Version
+	descriptor_file *os.File
+	descriptor_log  *log.Writer
 }
 
 func NewVersionSet() {
@@ -234,4 +241,221 @@ func (vs *VersionSet) NumLevelFiles(level int) int {
 	} else {
 		return 0
 	}
+}
+
+func (vs *VersionSet) AppendVersion(v *Version) {
+	if v.refs != 0 {
+		return
+	}
+	if v == vs.current {
+		return
+	}
+
+	if vs.current != nil {
+		vs.current.Unref()
+	}
+	vs.current = v
+	v.Ref()
+
+	v.prev = vs.dummy_version.prev
+	v.next = vs.dummy_version
+	v.prer.next = v
+	v.next.prev = v
+}
+
+func (vs *VersionSet) LogAndApply(edit *versionEdit, mu *sync.Mutex) {
+	// if (edit->has_log_number_) {
+	//    assert(edit->log_number_ >= log_number_);
+	//    assert(edit->log_number_ < next_file_number_);
+	//  } else {
+	//    edit->SetLogNumber(log_number_);
+	//  }
+
+	//  if (!edit->has_prev_log_number_) {
+	//    edit->SetPrevLogNumber(prev_log_number_);
+	//  }
+
+	//  edit->SetNextFile(next_file_number_);
+	//  edit->SetLastSequence(last_sequence_);
+
+	//  Version* v = new Version(this);
+	//  {
+	//    Builder builder(this, current_);
+	//    builder.Apply(edit);
+	//    builder.SaveTo(v);
+	//  }
+	//  Finalize(v);
+
+	//  // Initialize new descriptor log file if necessary by creating
+	//  // a temporary file that contains a snapshot of the current version.
+	//  std::string new_manifest_file;
+	//  Status s;
+	//  if (descriptor_log_ == NULL) {
+	//    // No reason to unlock *mu here since we only hit this path in the
+	//    // first call to LogAndApply (when opening the database).
+	//    assert(descriptor_file_ == NULL);
+	//    new_manifest_file = DescriptorFileName(dbname_, manifest_file_number_);
+	//    edit->SetNextFile(next_file_number_);
+	//    s = env_->NewWritableFile(new_manifest_file, &descriptor_file_);
+	//    if (s.ok()) {
+	//      descriptor_log_ = new log::Writer(descriptor_file_);
+	//      s = WriteSnapshot(descriptor_log_);
+	//    }
+	//  }
+
+	//  // Unlock during expensive MANIFEST log write
+	//  {
+	//    mu->Unlock();
+
+	//    // Write new record to MANIFEST log
+	//    if (s.ok()) {
+	//      std::string record;
+	//      edit->EncodeTo(&record);
+	//      s = descriptor_log_->AddRecord(record);
+	//      if (s.ok()) {
+	//        s = descriptor_file_->Sync();
+	//      }
+	//      if (!s.ok()) {
+	//        Log(options_->info_log, "MANIFEST write: %s\n", s.ToString().c_str());
+	//      }
+	//    }
+
+	//    // If we just created a new descriptor file, install it by writing a
+	//    // new CURRENT file that points to it.
+	//    if (s.ok() && !new_manifest_file.empty()) {
+	//      s = SetCurrentFile(env_, dbname_, manifest_file_number_);
+	//    }
+
+	//    mu->Lock();
+	//  }
+
+	//  // Install the new version
+	//  if (s.ok()) {
+	//    AppendVersion(v);
+	//    log_number_ = edit->log_number_;
+	//    prev_log_number_ = edit->prev_log_number_;
+	//  } else {
+	//    delete v;
+	//    if (!new_manifest_file.empty()) {
+	//      delete descriptor_log_;
+	//      delete descriptor_file_;
+	//      descriptor_log_ = NULL;
+	//      descriptor_file_ = NULL;
+	//      env_->DeleteFile(new_manifest_file);
+	//    }
+	//  }
+
+	//  return s;
+}
+
+type builder struct {
+	vset *VersionSet
+	base *Version
+}
+
+func (b *builder) apply(edit *versionEdit) {
+	// for (size_t i = 0; i < edit->compact_pointers_.size(); i++) {
+	//     const int level = edit->compact_pointers_[i].first;
+	//     vset_->compact_pointer_[level] =
+	//         edit->compact_pointers_[i].second.Encode().ToString();
+	//   }
+
+	//   // Delete files
+	//   const VersionEdit::DeletedFileSet& del = edit->deleted_files_;
+	//   for (VersionEdit::DeletedFileSet::const_iterator iter = del.begin();
+	//        iter != del.end();
+	//        ++iter) {
+	//     const int level = iter->first;
+	//     const uint64_t number = iter->second;
+	//     levels_[level].deleted_files.insert(number);
+	//   }
+
+	//   // Add new files
+	//   for (size_t i = 0; i < edit->new_files_.size(); i++) {
+	//     const int level = edit->new_files_[i].first;
+	//     FileMetaData* f = new FileMetaData(edit->new_files_[i].second);
+	//     f->refs = 1;
+
+	//     // We arrange to automatically compact this file after
+	//     // a certain number of seeks.  Let's assume:
+	//     //   (1) One seek costs 10ms
+	//     //   (2) Writing or reading 1MB costs 10ms (100MB/s)
+	//     //   (3) A compaction of 1MB does 25MB of IO:
+	//     //         1MB read from this level
+	//     //         10-12MB read from next level (boundaries may be misaligned)
+	//     //         10-12MB written to next level
+	//     // This implies that 25 seeks cost the same as the compaction
+	//     // of 1MB of data.  I.e., one seek costs approximately the
+	//     // same as the compaction of 40KB of data.  We are a little
+	//     // conservative and allow approximately one seek for every 16KB
+	//     // of data before triggering a compaction.
+	//     f->allowed_seeks = (f->file_size / 16384);
+	//     if (f->allowed_seeks < 100) f->allowed_seeks = 100;
+
+	//     levels_[level].deleted_files.erase(f->number);
+	//     levels_[level].added_files->insert(f);
+	//   }
+}
+
+func (b *builder) saveTo(v *Version) {
+	// 	BySmallestKey cmp;
+	//     cmp.internal_comparator = &vset_->icmp_;
+	//     for (int level = 0; level < config::kNumLevels; level++) {
+	//       // Merge the set of added files with the set of pre-existing files.
+	//       // Drop any deleted files.  Store the result in *v.
+	//       const std::vector<FileMetaData*>& base_files = base_->files_[level];
+	//       std::vector<FileMetaData*>::const_iterator base_iter = base_files.begin();
+	//       std::vector<FileMetaData*>::const_iterator base_end = base_files.end();
+	//       const FileSet* added = levels_[level].added_files;
+	//       v->files_[level].reserve(base_files.size() + added->size());
+	//       for (FileSet::const_iterator added_iter = added->begin();
+	//            added_iter != added->end();
+	//            ++added_iter) {
+	//         // Add all smaller files listed in base_
+	//         for (std::vector<FileMetaData*>::const_iterator bpos
+	//                  = std::upper_bound(base_iter, base_end, *added_iter, cmp);
+	//              base_iter != bpos;
+	//              ++base_iter) {
+	//           MaybeAddFile(v, level, *base_iter);
+	//         }
+
+	//         MaybeAddFile(v, level, *added_iter);
+	//       }
+
+	//       // Add remaining base files
+	//       for (; base_iter != base_end; ++base_iter) {
+	//         MaybeAddFile(v, level, *base_iter);
+	//       }
+
+	// #ifndef NDEBUG
+	//       // Make sure there is no overlap in levels > 0
+	//       if (level > 0) {
+	//         for (uint32_t i = 1; i < v->files_[level].size(); i++) {
+	//           const InternalKey& prev_end = v->files_[level][i-1]->largest;
+	//           const InternalKey& this_begin = v->files_[level][i]->smallest;
+	//           if (vset_->icmp_.Compare(prev_end, this_begin) >= 0) {
+	//             fprintf(stderr, "overlapping ranges in same level %s vs. %s\n",
+	//                     prev_end.DebugString().c_str(),
+	//                     this_begin.DebugString().c_str());
+	//             abort();
+	//           }
+	//         }
+	//       }
+	// #endif
+	//     }
+}
+
+func (b *builder) maybeAddFile(v *Version, level int, f *fileMetaData) {
+	// if (levels_[level].deleted_files.count(f->number) > 0) {
+	//     // File is deleted: do nothing
+	//   } else {
+	//     std::vector<FileMetaData*>* files = &v->files_[level];
+	//     if (level > 0 && !files->empty()) {
+	//       // Must not overlap
+	//       assert(vset_->icmp_.Compare((*files)[files->size()-1]->largest,
+	//                                   f->smallest) < 0);
+	//     }
+	//     f->refs++;
+	//     files->push_back(f);
+	//   }
 }

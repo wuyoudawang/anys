@@ -1,11 +1,13 @@
-package storeEngine
+package cache
 
 import (
 	"errors"
 	"os"
 	"sync"
 
-	// "anys/pkg/utils"
+	"anys/cache/iterator"
+	"anys/cache/option"
+	"anys/cache/table"
 )
 
 var (
@@ -42,6 +44,39 @@ func (fse *fileStoreEngine) OpenLogFile(number uint64) error {
 
 func (fse *fileStoreEngine) Flush() error {
 	return nil
+}
+
+func buildTable(dbname string, opt *option.Options, table_cache *tableCache, iter *iterator.Interface, meta *fileMetaData) {
+	meta.fileSize = 0
+	iter.First()
+
+	fname := TableFileName(dbname, meta.number)
+	if iter.Valid() {
+		fd, err := os.OpenFile(fname, flag, 0755)
+		if err != nil {
+			return err
+		}
+		defer fd.Close()
+
+		tableWriter := table.NewWriter(fd, opt)
+		meta.smallest = internalKey(iter.Key())
+		for ; iter.Valid(); iter.Next() {
+			key := iter.Key()
+			meta.largest = internalKey(key)
+			tableWriter.Append(key, iter.Value())
+		}
+
+		meta.fileSize = tableWriter.BlocksLen()
+		err = tableWriter.Close()
+		if err != nil {
+			return err
+		}
+
+		err = fd.Sync()
+		if err != nil {
+			return err
+		}
+	}
 }
 
 // Status BuildTable(const std::string& dbname,
