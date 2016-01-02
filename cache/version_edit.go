@@ -93,6 +93,14 @@ func (ve *versionEdit) AddFile(level int, fileNumber, fileSize uint64, smallest,
 	// new_files_.push_back(std::make_pair(level, f));
 }
 
+func (ve *versionEdit) deleteFile(level int, filenumber uint64) {
+	df := dFile{
+		level:  level,
+		number: filenumber,
+	}
+	ve.deletFiles = append(ve.deletFiles, df)
+}
+
 func (ve *versionEdit) Clear() {
 	ve.comparatorName = ve.comparatorName[:0]
 	ve.logNumber = 0
@@ -177,79 +185,88 @@ func (ve *versionEdit) getLevel(input []byte) (int, bool) {
 }
 
 func (ve *versionEdit) decodeFrom(src []byte) error {
-	// Clear();
-	// Slice input = src;
-	// const char* msg = NULL;
-	// uint32_t tag;
+	ve.Clear()
+	input := src
+	msg := ""
+	var tag uint32
 
-	// // Temporary storage for parsing
-	// int level;
-	// uint64_t number;
-	// FileMetaData f;
-	// Slice str;
-	// InternalKey key;
+	// temporary storage for parsing
+	var level int
+	var number uint32
+	var f fileMetaData
+	var str []byte
+	var key internalKey
+
+	for msg == "" && binary.Varint(input) {
+		switch tag {
+		case kComparator:
+			if utils.GetLenPrefixedBytes(&input, &str) {
+				ve.comparatorName = str
+				ve.hasComparator = true
+			} else {
+				msg = "comparator name"
+			}
+		case kLogNumber:
+			length := 0
+			ve.logNumber, length = binary.Varint(buf)
+			if length == 0 {
+				msg = "log number"
+			} else {
+				ve.hasLogNumber = true
+			}
+		case kPrevLogNumber:
+			length := 0
+			ve.prevLogNumber, length = binary.Varint(input)
+			if length > 0 {
+				ve.hasPrevLogNumber = true
+			} else {
+				msg = "prev log nubmer"
+			}
+		case kNextFileNumber:
+			length := 0
+			ve.nextFileNumber, length = binary.Varint(input)
+			if length > 0 {
+				ve.hasNextFileNumber = true
+			} else {
+				msg = "next file number"
+			}
+		case kLastSequence:
+			length := 0
+			ve.lastSequence, length = binary.Varint(input)
+			if length > 0 {
+				ve.hasLastSequence = true
+			} else {
+				msg = "last sequence"
+			}
+		case kCompactPointer:
+			level, levelOk = ve.getLevel(input)
+			key, keyOk = ve.getInternalKey(input)
+			if levelOk && keyOk {
+				ve.compactPointers = append(ve.compactPointers, &compactKey{level, key})
+			} else {
+				msg = "compaction pointer"
+			}
+		case kDeletedFile:
+			level, levelOk = ve.getLevel(input)
+			number, ok = binary.Varint(input)
+			if levelOk && ok {
+				ve.deletFiles = append(ve.deletFiles, &dFile{level, number})
+			} else {
+				msg = "deleted file"
+			}
+		case kNewFile:
+		default:
+			msg = "unknown tag"
+		}
+
+		if msg == "" {
+			msg = "invalid tag"
+		}
+		return result
+	}
 
 	// while (msg == NULL && GetVarint32(&input, &tag)) {
 	//   switch (tag) {
-	//     case kComparator:
-	//       if (GetLengthPrefixedSlice(&input, &str)) {
-	//         comparator_ = str.ToString();
-	//         has_comparator_ = true;
-	//       } else {
-	//         msg = "comparator name";
-	//       }
-	//       break;
-
-	//     case kLogNumber:
-	//       if (GetVarint64(&input, &log_number_)) {
-	//         has_log_number_ = true;
-	//       } else {
-	//         msg = "log number";
-	//       }
-	//       break;
-
-	//     case kPrevLogNumber:
-	//       if (GetVarint64(&input, &prev_log_number_)) {
-	//         has_prev_log_number_ = true;
-	//       } else {
-	//         msg = "previous log number";
-	//       }
-	//       break;
-
-	//     case kNextFileNumber:
-	//       if (GetVarint64(&input, &next_file_number_)) {
-	//         has_next_file_number_ = true;
-	//       } else {
-	//         msg = "next file number";
-	//       }
-	//       break;
-
-	//     case kLastSequence:
-	//       if (GetVarint64(&input, &last_sequence_)) {
-	//         has_last_sequence_ = true;
-	//       } else {
-	//         msg = "last sequence number";
-	//       }
-	//       break;
-
-	//     case kCompactPointer:
-	//       if (GetLevel(&input, &level) &&
-	//           GetInternalKey(&input, &key)) {
-	//         compact_pointers_.push_back(std::make_pair(level, key));
-	//       } else {
-	//         msg = "compaction pointer";
-	//       }
-	//       break;
-
-	//     case kDeletedFile:
-	//       if (GetLevel(&input, &level) &&
-	//           GetVarint64(&input, &number)) {
-	//         deleted_files_.insert(std::make_pair(level, number));
-	//       } else {
-	//         msg = "deleted file";
-	//       }
-	//       break;
-
 	//     case kNewFile:
 	//       if (GetLevel(&input, &level) &&
 	//           GetVarint64(&input, &f.number) &&

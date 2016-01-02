@@ -6,7 +6,6 @@ import (
 	"unsafe"
 
 	"anys/cache/log"
-	"anys/cache/storeEngine"
 	"anys/pkg/utils"
 )
 
@@ -38,6 +37,19 @@ const (
 	kReadBytesPeriod int = 1048576
 )
 
+type compactionState struct {
+	compaction        *compaction
+	smallest_snaphost int64
+	outputs           []struct {
+		number            int64
+		file_size         int64
+		smallest, largest internalKey
+	}
+	bld         *builder
+	outfile     os.File
+	total_bytes uint64
+}
+
 type BatchWriter struct {
 	err   error
 	batch *Batch
@@ -46,13 +58,20 @@ type BatchWriter struct {
 	mc    *sync.Cond
 }
 
+type manualCompaction struct {
+	level       int
+	done        bool
+	begin       *internalKey
+	end         *internalKey
+	tmp_storage internalKey
+}
+
 type DB struct {
 	mem            *MemTable
 	imm            *MemTable
 	log            *log.Writer
 	mu             sync.Mutex
 	tmpBatch       *Batch
-	storages       storeEngine.Interface
 	opt            *Options
 	writes         *utils.Queue
 	version        *VersionSet

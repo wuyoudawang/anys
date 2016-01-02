@@ -264,12 +264,25 @@ func (vs *VersionSet) AppendVersion(v *Version) {
 }
 
 func (vs *VersionSet) LogAndApply(edit *versionEdit, mu *sync.Mutex) {
-	// if (edit->has_log_number_) {
-	//    assert(edit->log_number_ >= log_number_);
-	//    assert(edit->log_number_ < next_file_number_);
-	//  } else {
-	//    edit->SetLogNumber(log_number_);
-	//  }
+	if edit.hasLogNumber {
+		if edit.logNumber < vs.logNumber {
+			return
+		}
+		if edit.logNumber >= vs.nextFileNumber {
+			return
+		}
+	} else {
+		edit.SetLogNumber(vs.logNumber)
+	}
+
+	if !edit.hasPrevLogNumber {
+		edit.SetPrevLogNumber(vs.prevLogNumber)
+	}
+
+	edit.SetNextFileNumber(vs.nextFileNumber)
+	edit.SetSequence(vs.lastSequence)
+
+	// v := new
 
 	//  if (!edit->has_prev_log_number_) {
 	//    edit->SetPrevLogNumber(prev_log_number_);
@@ -348,9 +361,15 @@ func (vs *VersionSet) LogAndApply(edit *versionEdit, mu *sync.Mutex) {
 	//  return s;
 }
 
+type levelState struct {
+	delete_files []int64
+	added_files  *fileSet
+}
+
 type builder struct {
-	vset *VersionSet
-	base *Version
+	vset   *VersionSet
+	base   *Version
+	levels [kNumLevels]levelState
 }
 
 func (b *builder) apply(edit *versionEdit) {
@@ -459,3 +478,90 @@ func (b *builder) maybeAddFile(v *Version, level int, f *fileMetaData) {
 	//     files->push_back(f);
 	//   }
 }
+
+type compaction struct {
+	level                int
+	max_output_file_size uint64
+	input_version        *Version
+	edit                 versionEdit
+	input                [2]*fileMetaData
+	grandparents         *fileMetaData
+	grandparent_index    int64
+	seen_key             bool
+	overlapped_bytes     int64
+	level_ptrs           [kNumLevels]int64
+}
+
+func newCompaction(level int) *compaction {
+	c := &compaction{
+		level:                level,
+		max_output_file_size: MaxFileSizeWithLevel(level),
+		input_version:        nil,
+		grandparent_index:    0,
+		seen_key:             false,
+	}
+	for i := 0; i < kNumLevels; i++ {
+		c.level_ptrs[i] = 0
+	}
+	return c
+}
+
+func (c *compaction) numInputFiles(which int) int {
+	return len(c.input[which])
+}
+
+func (c *compaction) isTrivialMove() bool {
+	return (c.numInputFiles(0) == 1 && c.numInputFiles(1) == 0 &&
+		totalFileSize(c.grandparents) <= kMaxGrandParentOverlapBytes)
+}
+
+func (c *compaction) addInputDeletions(edit *versionEdit) {
+	for which := 0; which < 2; which++ {
+		for i := 0; i < c.numInputFiles(which); i++ {
+			edit.deleteFile(level+which, c.input[which][i].number)
+		}
+	}
+}
+
+func (c *compaction) isBaseLevelForKey(user_key []byte) bool {
+	// Maybe use binary search to find right entry instead of linear search?
+	// const Comparator* user_cmp = input_version_->vset_->icmp_.user_comparator();
+	// for (int lvl = level_ + 2; lvl < config::kNumLevels; lvl++) {
+	//   const std::vector<FileMetaData*>& files = input_version_->files_[lvl];
+	//   for (; level_ptrs_[lvl] < files.size(); ) {
+	//     FileMetaData* f = files[level_ptrs_[lvl]];
+	//     if (user_cmp->Compare(user_key, f->largest.user_key()) <= 0) {
+	//       // We've advanced far enough
+	//       if (user_cmp->Compare(user_key, f->smallest.user_key()) >= 0) {
+	//         // Key falls in this file's range, so definitely not base level
+	//         return false;
+	//       }
+	//       break;
+	//     }
+	//     level_ptrs_[lvl]++;
+	//   }
+	// }
+	// return true;
+}
+
+// bool Compaction::ShouldStopBefore(const Slice& internal_key) {
+//   // Scan to find earliest grandparent file that contains key.
+//   const InternalKeyComparator* icmp = &input_version_->vset_->icmp_;
+//   while (grandparent_index_ < grandparents_.size() &&
+//       icmp->Compare(internal_key,
+//                     grandparents_[grandparent_index_]->largest.Encode()) > 0) {
+//     if (seen_key_) {
+//       overlapped_bytes_ += grandparents_[grandparent_index_]->file_size;
+//     }
+//     grandparent_index_++;
+//   }
+//   seen_key_ = true;
+
+//   if (overlapped_bytes_ > kMaxGrandParentOverlapBytes) {
+//     // Too much overlap for current output; start new output
+//     overlapped_bytes_ = 0;
+//     return true;
+//   } else {
+//     return false;
+//   }
+// }
