@@ -11,6 +11,13 @@ const (
 	kMaxNum uint64 = (kMaxSeq << 8) | uint64(kValueTypeForSeek)
 )
 
+// Maximum number encoded in bytes.
+var kMaxNumBytes = make([]byte, 8)
+
+func init() {
+	binary.LittleEndian.PutUint64(kMaxNumBytes, kMaxNum)
+}
+
 type internalKey []byte
 
 func newInternalKey(key []byte, seq uint64, kt int) internalKey {
@@ -43,4 +50,17 @@ func (ik internalKey) userKey() []byte {
 func (ik internalKey) encode() []byte {
 	ik.assert()
 	return ik
+}
+
+func (ik internalKey) num() uint64 {
+	return binary.LittleEndian.Uint64(ik[len(ik)-8:])
+}
+
+func (ik internalKey) parseNum() (seq uint64, kt int) {
+	num := ik.num()
+	seq, kt = uint64(num>>8), num&0xff
+	if kt > ktVal {
+		panic(fmt.Sprintf("leveldb: iKey %q, len=%d: invalid type %#x", []byte(ik), len(ik), kt))
+	}
+	return
 }

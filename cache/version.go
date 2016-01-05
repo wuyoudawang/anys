@@ -7,6 +7,7 @@ import (
 	"anys/cache/iterator"
 	"anys/cache/log"
 	"anys/cache/option"
+	"anys/cache/table"
 	"anys/pkg/comparator"
 )
 
@@ -96,26 +97,30 @@ func SomeFileOverlapsRange(cmp comparator.Comparator,
 	return !beforeFile(cmp, largestUserKey, files[index])
 }
 
-type versionIterator struct {
-	cmp    comparator.Comparator
+type versionFileNumIterator struct {
+	cmp    *iComparator
 	index  int
 	flist  []*fileMetaData
 	valBuf [16]byte
 }
 
-func (vi *versionIterator) Valid() bool {
+func newVersionFileNumIter() *versionFileNumIterator {
+
+}
+
+func (vi *versionFileNumIterator) Valid() bool {
 	return vi.index < len(vi.flist)
 }
 
-func (vi *versionIterator) Seek(target []byte) {
+func (vi *versionFileNumIterator) Seek(target []byte) {
 	vi.index = FindFile(vi.cmp, vi.flist, target)
 }
 
-func (vi *versionIterator) First() {
+func (vi *versionFileNumIterator) First() {
 	vi.index = 0
 }
 
-func (vi *versionIterator) Last() {
+func (vi *versionFileNumIterator) Last() {
 	if len(vi.flist) == 0 {
 		vi.index = 0
 	} else {
@@ -123,13 +128,13 @@ func (vi *versionIterator) Last() {
 	}
 }
 
-func (vi *versionIterator) Next() {
+func (vi *versionFileNumIterator) Next() {
 	if vi.Valid() {
 		vi.index++
 	}
 }
 
-func (vi *versionIterator) Prev() {
+func (vi *versionFileNumIterator) Prev() {
 	if vi.Valid() {
 		if vi.index == 0 {
 			vi.index = len(vi.flist)
@@ -139,14 +144,14 @@ func (vi *versionIterator) Prev() {
 	}
 }
 
-func (vi *versionIterator) Key() []byte {
+func (vi *versionFileNumIterator) Key() []byte {
 	if !vi.Valid() {
 		return nil
 	}
 	return vi.flist[vi.index].largest.encode()
 }
 
-func (vi *versionIterator) Value() []byte {
+func (vi *versionFileNumIterator) Value() []byte {
 	if !vi.Valid() {
 		return nil
 	}
@@ -156,8 +161,20 @@ func (vi *versionIterator) Value() []byte {
 	return vi.valBuf[:]
 }
 
-func (vi *versionIterator) Error() error {
+func (vi *versionFileNumIterator) Error() error {
 	return nil
+}
+
+func getFileIterator(args interface{}, opt *option.ReadOptions, value []byte) iterator.Interface {
+	cache, ok := args.(*tableCache)
+	if !ok {
+		panic("args error")
+	}
+	if len(value) != 16 {
+		return iterator.NewEmptyIterator("FileReader invoked with unexpected value")
+	} else {
+		return cache.NewIterator()
+	}
 }
 
 type Version struct {
@@ -172,8 +189,14 @@ type Version struct {
 	compactionLevel    int
 }
 
-func (v *Version) NewConcatenatingIterator(readOpt *option.ReadOptions, level int) {
+func newVersion() *Version {
 
+}
+
+func (v *Version) NewConcatenatingIterator(readOpt *option.ReadOptions, level int) {
+	return table.NewTwoLevelIterator(
+		newVersionFileNumIter(v.vset.table_cache, &files_[level]),
+		getFileIterator, v.vset.table_cache, readOpt)
 }
 
 func (v *Version) AddIterators(readOpt *option.ReadOptions, iters *iterator.Interface) {
@@ -203,6 +226,7 @@ type VersionSet struct {
 	dummy_version   *Version
 	descriptor_file *os.File
 	descriptor_log  *log.Writer
+	table_cache     *tableCache
 }
 
 func NewVersionSet() {

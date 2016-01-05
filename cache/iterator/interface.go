@@ -61,3 +61,23 @@ type Interface interface {
 	// its contents may change on the next call to any 'seeks method'.
 	Value() []byte
 }
+
+type emptyIterator struct {
+	err error
+}
+
+func (*emptyIterator) Valid() bool            { return false }
+func (i *emptyIterator) First() bool          { return false }
+func (i *emptyIterator) Last() bool           { return false }
+func (i *emptyIterator) Seek(key []byte) bool { return false }
+func (i *emptyIterator) Next() bool           { return false }
+func (i *emptyIterator) Prev() bool           { return false }
+func (*emptyIterator) Key() []byte            { return nil }
+func (*emptyIterator) Value() []byte          { return nil }
+func (i *emptyIterator) Error() error         { return i.err }
+
+// NewEmptyIterator creates an empty iterator. The err parameter can be
+// nil, but if not nil the given err will be returned by Error method.
+func NewEmptyIterator(err error) Iterator {
+	return &emptyIterator{err: err}
+}
