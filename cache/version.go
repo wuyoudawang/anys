@@ -98,14 +98,18 @@ func SomeFileOverlapsRange(cmp comparator.Comparator,
 }
 
 type versionFileNumIterator struct {
-	cmp    *iComparator
+	icmp   *iComparator
 	index  int
 	flist  []*fileMetaData
 	valBuf [16]byte
 }
 
-func newVersionFileNumIter() *versionFileNumIterator {
-
+func newVersionFileNumIter(icmp *iComparator, flist []*fileMetaData) *versionFileNumIterator {
+	return *versionFileNumIterator{
+		icmp:  icmp,
+		index: len(flist),
+		flist: flist,
+	}
 }
 
 func (vi *versionFileNumIterator) Valid() bool {

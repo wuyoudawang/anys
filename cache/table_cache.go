@@ -5,6 +5,7 @@ import (
 	"os"
 	"unsafe"
 
+	"anys/cache/iterator"
 	"anys/cache/option"
 	"anys/cache/storeEngine"
 	"anys/cache/table"
@@ -54,7 +55,22 @@ func (tc *tableCache) FindTable(fileNumber, fileSize uint64, node **utils.LruNod
 	return nil
 }
 
-func (tc *tableCache) NewIterator() {
+func (tc *tableCache) NewIterator(opt *option.ReadOptions,
+	fileNumber, fileSize uint64,
+	k []byte, arg interface{},
+	tableptr **table.Writer) {
+	if tableptr != nil {
+		*tableptr = nil
+	}
+
+	var handle *utils.LruNode
+	err := tc.FindTable(fileNumber, fileSize, &handle)
+	if err != nil {
+		return iterator.NewEmptyIterator(err)
+	}
+
+	tb := (*tableAndFile)(tc.cache.Value(handle)).tw
+	// result :=
 	// if (tableptr != NULL) {
 	//   *tableptr = NULL;
 	// }
@@ -74,7 +90,10 @@ func (tc *tableCache) NewIterator() {
 	// return result;
 }
 
-func (tc *tableCache) Get(readOpt *option.ReadOptions, fileNumber, fileSize uint64, key []byte, arg []interface{}) {
+func (tc *tableCache) Get(opt *option.ReadOptions,
+	fileNumber, fileSize uint64,
+	k []byte, arg interface{},
+	handle_result func(interface{}, []byte, []byte)) {
 	// Cache::Handle* handle = NULL;
 	// Status s = FindTable(file_number, file_size, &handle);
 	// if (s.ok()) {
