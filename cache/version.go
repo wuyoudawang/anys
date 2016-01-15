@@ -572,6 +572,10 @@ func (c *compaction) isBaseLevelForKey(user_key []byte) bool {
 	// return true;
 }
 
+func (c *compaction) shouldStopBefore(ikey []byte) {
+
+}
+
 // bool Compaction::ShouldStopBefore(const Slice& internal_key) {
 //   // Scan to find earliest grandparent file that contains key.
 //   const InternalKeyComparator* icmp = &input_version_->vset_->icmp_;

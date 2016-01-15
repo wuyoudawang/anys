@@ -7,7 +7,6 @@ import (
 
 	"anys/cache/iterator"
 	"anys/cache/option"
-	"anys/cache/storeEngine"
 	"anys/cache/table"
 	"anys/pkg/utils"
 )

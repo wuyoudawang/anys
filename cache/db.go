@@ -38,7 +38,7 @@ const (
 )
 
 type compactionState struct {
-	compaction        *compaction
+	cpact             *compaction
 	smallest_snaphost int64
 	outputs           []struct {
 		number            int64

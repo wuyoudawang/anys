@@ -85,12 +85,12 @@ func (ve *versionEdit) SetCompactPointer(ptr *compactKey) {
 }
 
 func (ve *versionEdit) AddFile(level int, fileNumber, fileSize uint64, smallest, largest []byte) {
-	// FileMetaData f;
-	// f.number = file;
-	// f.file_size = file_size;
-	// f.smallest = smallest;
-	// f.largest = largest;
-	// new_files_.push_back(std::make_pair(level, f));
+	var f fileMetaData
+	f.number = fileNumber
+	f.fileSize = fileSize
+	f.smallest = smallest
+	f.largest = largest
+	ve.newFiles = append(ve.newFiles, f)
 }
 
 func (ve *versionEdit) deleteFile(level int, filenumber uint64) {
