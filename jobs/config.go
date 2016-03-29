@@ -3,8 +3,8 @@ package jobs
 import (
 	"time"
 
-	"anys/config"
-	"anys/log"
+	"github.com/liuzhiyi/anys/config"
+	"github.com/liuzhiyi/anys/log"
 )
 
 const (

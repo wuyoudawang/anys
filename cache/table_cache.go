@@ -5,10 +5,10 @@ import (
 	"os"
 	"unsafe"
 
-	"anys/cache/iterator"
-	"anys/cache/option"
-	"anys/cache/table"
-	"anys/pkg/utils"
+	"github.com/liuzhiyi/anys/cache/iterator"
+	"github.com/liuzhiyi/anys/cache/option"
+	"github.com/liuzhiyi/anys/cache/table"
+	"github.com/liuzhiyi/anys/pkg/utils"
 )
 
 type tableAndFile struct {

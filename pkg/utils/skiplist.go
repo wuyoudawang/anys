@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"anys/pkg/comparator"
+	"github.com/liuzhiyi/anys/pkg/comparator"
 )
 
 const (

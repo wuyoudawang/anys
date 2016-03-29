@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"anys/pkg/utils"
+	"github.com/liuzhiyi/anys/pkg/utils"
 )
 
 const (

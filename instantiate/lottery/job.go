@@ -1,8 +1,8 @@
 package lottery
 
 import (
-	"anys/instantiate/lottery/model"
-	"anys/jobs"
+	"github.com/liuzhiyi/anys/instantiate/lottery/model"
+	"github.com/liuzhiyi/anys/jobs"
 )
 
 type lotteryJob struct {

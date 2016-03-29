@@ -5,8 +5,8 @@ import (
 	"time"
 	"unsafe"
 
-	"anys/cache/log"
-	"anys/pkg/utils"
+	"github.com/liuzhiyi/anys/cache/log"
+	"github.com/liuzhiyi/anys/pkg/utils"
 )
 
 const (

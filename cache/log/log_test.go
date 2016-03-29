@@ -53,7 +53,7 @@ func TestEmpty(t *testing.T) {
 
 func testGenerator(t *testing.T, reset func(), gen func() (string, bool)) {
 	buf := new(bytes.Buffer)
-	// buf, err := os.OpenFile(`E:\goWork\src\anys\cache\log\test.txt`, os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0777)
+	// buf, err := os.OpenFile(`E:\goWork\src\github.com/liuzhiyi/anys\cache\log\test.txt`, os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0777)
 	// if err != nil {
 	// 	t.Fatal(err)
 	// }
@@ -96,7 +96,7 @@ func testGenerator(t *testing.T, reset func(), gen func() (string, bool)) {
 }
 
 func checkByleveldb(t *testing.T, reset func(), gen func() (string, bool)) {
-	buf, err := os.OpenFile(`E:\goWork\src\anys\cache\log\test.txt`, os.O_RDONLY, 0777)
+	buf, err := os.OpenFile(`E:\goWork\src\github.com/liuzhiyi/anys\cache\log\test.txt`, os.O_RDONLY, 0777)
 	if err != nil {
 		t.Fatal(err)
 	}

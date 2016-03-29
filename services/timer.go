@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"anys/jobs"
+	"github.com/liuzhiyi/anys/jobs"
 )
 
 type Timer struct {

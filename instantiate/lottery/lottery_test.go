@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"anys/config"
-	"anys/jobs"
-	"anys/log"
-	"anys/pkg/db"
-	"anys/services"
+	"github.com/liuzhiyi/anys/config"
+	"github.com/liuzhiyi/anys/jobs"
+	"github.com/liuzhiyi/anys/log"
+	"github.com/liuzhiyi/anys/pkg/db"
+	"github.com/liuzhiyi/anys/services"
 )
 
 func TestLottery(t *testing.T) {

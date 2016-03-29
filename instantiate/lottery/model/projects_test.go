@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"anys/config"
-	_ "anys/pkg/db"
+	"github.com/liuzhiyi/anys/config"
+	_ "github.com/liuzhiyi/anys/pkg/db"
 	"github.com/liuzhiyi/go-db"
 )
 

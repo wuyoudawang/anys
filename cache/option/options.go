@@ -1,8 +1,8 @@
 package option
 
 import (
-	"anys/cache/filter"
-	"anys/pkg/comparator"
+	"github.com/liuzhiyi/anys/cache/filter"
+	"github.com/liuzhiyi/anys/pkg/comparator"
 )
 
 const (

@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"anys/jobs"
+	"github.com/liuzhiyi/anys/jobs"
 )
 
 type LocalServer struct {

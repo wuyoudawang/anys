@@ -3,7 +3,7 @@ package db
 import (
 	// "fmt"
 
-	"anys/config"
+	"github.com/liuzhiyi/anys/config"
 	"github.com/liuzhiyi/go-db"
 )
 

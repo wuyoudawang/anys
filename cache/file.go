@@ -5,9 +5,9 @@ import (
 	"os"
 	"sync"
 
-	"anys/cache/iterator"
-	"anys/cache/option"
-	"anys/cache/table"
+	"github.com/liuzhiyi/anys/cache/iterator"
+	"github.com/liuzhiyi/anys/cache/option"
+	"github.com/liuzhiyi/anys/cache/table"
 )
 
 var (

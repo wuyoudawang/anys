@@ -3,8 +3,8 @@ package table
 import (
 	"bytes"
 
-	"anys/cache/iterator"
-	"anys/cache/option"
+	"github.com/liuzhiyi/anys/cache/iterator"
+	"github.com/liuzhiyi/anys/cache/option"
 )
 
 type BlockFunction func(interface{}, *option.ReadOptions, []byte) iterator.Interface

@@ -1,8 +1,8 @@
 package table
 
 import (
-	"anys/cache/iterator"
-	"anys/pkg/comparator"
+	"github.com/liuzhiyi/anys/cache/iterator"
+	"github.com/liuzhiyi/anys/pkg/comparator"
 )
 
 const (

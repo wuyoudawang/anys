@@ -2,7 +2,7 @@ package lottery
 
 import (
 // "fmt"
-// "anys/instantiate/lottery/model"
+// "github.com/liuzhiyi/anys/instantiate/lottery/model"
 )
 
 type Number struct {

@@ -10,8 +10,8 @@ import (
 
 	"github.com/golang/snappy"
 
-	"anys/cache/option"
-	"anys/pkg/utils"
+	"github.com/liuzhiyi/anys/cache/option"
+	"github.com/liuzhiyi/anys/pkg/utils"
 )
 
 var (

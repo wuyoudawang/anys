@@ -1,9 +1,9 @@
 package builtin
 
 import (
-	"anys/config"
-	"anys/jobs"
-	"anys/services"
+	"github.com/liuzhiyi/anys/config"
+	"github.com/liuzhiyi/anys/jobs"
+	"github.com/liuzhiyi/anys/services"
 )
 
 func InitServiceAndJob(c *config.Config) {

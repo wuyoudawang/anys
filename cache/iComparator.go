@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"anys/pkg/comparator"
+	"github.com/liuzhiyi/anys/pkg/comparator"
 )
 
 type iComparator struct {

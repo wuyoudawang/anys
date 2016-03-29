@@ -3,7 +3,7 @@ package cache
 import (
 	"encoding/binary"
 
-	"anys/pkg/utils"
+	"github.com/liuzhiyi/anys/pkg/utils"
 )
 
 const (

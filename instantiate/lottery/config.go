@@ -3,12 +3,12 @@ package lottery
 import (
 	"fmt"
 
-	"anys/config"
-	"anys/instantiate/lottery/model"
-	"anys/jobs"
-	"anys/log"
-	"anys/pkg/db"
-	"anys/pkg/utils"
+	"github.com/liuzhiyi/anys/config"
+	"github.com/liuzhiyi/anys/instantiate/lottery/model"
+	"github.com/liuzhiyi/anys/jobs"
+	"github.com/liuzhiyi/anys/log"
+	"github.com/liuzhiyi/anys/pkg/db"
+	"github.com/liuzhiyi/anys/pkg/utils"
 )
 
 const (

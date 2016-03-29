@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"anys/config"
+	"github.com/liuzhiyi/anys/config"
 )
 
 var c = &config.Config{}
@@ -17,7 +17,7 @@ func Test_Log(t *testing.T) {
 
 	c.CreateConfModules()
 	c.InitConfModules()
-	err := c.Parse("../conf/anys.conf")
+	err := c.Parse("../conf/github.com/liuzhiyi/anys.conf")
 	fmt.Println(err)
 	fmt.Println(NewLogger(c))
 	Info("hello world!")

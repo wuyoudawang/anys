@@ -1,7 +1,7 @@
 package lottery
 
 import (
-// "anys/instantiate/lottery/model"
+// "github.com/liuzhiyi/anys/instantiate/lottery/model"
 )
 
 type Table struct {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"anys/pkg/utils"
+	"github.com/liuzhiyi/anys/pkg/utils"
 	"github.com/liuzhiyi/go-db"
 )
 

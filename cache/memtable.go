@@ -4,9 +4,9 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"anys/cache/iterator"
-	"anys/pkg/comparator"
-	"anys/pkg/utils"
+	"github.com/liuzhiyi/anys/cache/iterator"
+	"github.com/liuzhiyi/anys/pkg/comparator"
+	"github.com/liuzhiyi/anys/pkg/utils"
 )
 
 func getLenPrefixedBytes(data []byte) []byte {

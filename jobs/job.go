@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"anys/pkg/utils"
 	"github.com/astaxie/beego/logs"
+	"github.com/liuzhiyi/anys/pkg/utils"
 )
 
 const (
@@ -53,7 +53,7 @@ type Job struct {
 	stdin  *Input
 	stderr *Output
 	stdout *Output
-	log    logs.LoggerInterface
+	log    logs.Logger
 
 	key     int64
 	color   bool
@@ -107,7 +107,7 @@ func NewJob(entity Entity, name string) *Job {
 	}
 }
 
-func (j *Job) SetLog(log logs.LoggerInterface) {
+func (j *Job) SetLog(log logs.Logger) {
 	j.log = log
 }
 
@@ -549,7 +549,7 @@ func (j *Job) exit() (error, int) {
 
 func (j *Job) LogInfo() error {
 	if j.log != nil {
-		return j.log.WriteMsg("msg", NoErrLvl)
+		return j.log.WriteMsg(time.Now(), "msg", NoErrLvl)
 	}
 
 	return nil

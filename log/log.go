@@ -3,7 +3,7 @@ package log
 import (
 	"fmt"
 
-	"anys/config"
+	"github.com/liuzhiyi/anys/config"
 
 	"github.com/astaxie/beego/logs"
 )

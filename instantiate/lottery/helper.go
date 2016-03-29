@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"anys/pkg/utils"
+	"github.com/liuzhiyi/anys/pkg/utils"
 )
 
 const (

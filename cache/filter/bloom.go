@@ -1,7 +1,7 @@
 package filter
 
 import (
-	"anys/pkg/utils"
+	"github.com/liuzhiyi/anys/pkg/utils"
 )
 
 func bloomHash(key []byte) {

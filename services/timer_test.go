@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"anys/jobs"
+	"github.com/liuzhiyi/anys/jobs"
 )
 
 type testJob struct {

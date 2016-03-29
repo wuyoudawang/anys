@@ -1,8 +1,8 @@
 package jobs
 
 import (
-	"anys/pkg/utils"
 	"fmt"
+	"github.com/liuzhiyi/anys/pkg/utils"
 	"testing"
 	"time"
 )

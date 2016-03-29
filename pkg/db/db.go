@@ -3,8 +3,8 @@ package db
 import (
 	"fmt"
 
-	"anys/config"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/liuzhiyi/anys/config"
 	db "github.com/liuzhiyi/go-db"
 )
 

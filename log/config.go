@@ -1,7 +1,7 @@
 package log
 
 import (
-	"anys/config"
+	"github.com/liuzhiyi/anys/config"
 	"path"
 
 	"github.com/astaxie/beego/logs"
@@ -57,7 +57,7 @@ func initConf(c *config.Config) error {
 	conf := GetConf(c)
 	conf.BufSize = 10000
 	dir, _ := c.Getwd()
-	conf.FileName = path.Join(dir, "anys.log")
+	conf.FileName = path.Join(dir, "github.com/liuzhiyi/anys.log")
 	conf.Level = logs.LevelWarning
 	conf.Daily = true
 	conf.Maxdays = 10

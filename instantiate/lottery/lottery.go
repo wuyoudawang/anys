@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"anys/instantiate/lottery/model"
-	"anys/log"
-	"anys/pkg/utils"
+	"github.com/liuzhiyi/anys/instantiate/lottery/model"
+	"github.com/liuzhiyi/anys/log"
+	"github.com/liuzhiyi/anys/pkg/utils"
 )
 
 type methodFn func(*Lottery, string, *model.Projects) (error, int)

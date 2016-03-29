@@ -3,7 +3,7 @@ package lottery
 import (
 // "fmt"
 
-// "anys/pkg/utils"
+// "github.com/liuzhiyi/anys/pkg/utils"
 )
 
 func (l *Lottery) Reduce(i ...int) {

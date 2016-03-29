@@ -8,10 +8,10 @@ import (
 
 	"github.com/golang/snappy"
 
-	"anys/cache/filter"
-	"anys/cache/option"
-	"anys/pkg/comparator"
-	"anys/pkg/utils"
+	"github.com/liuzhiyi/anys/cache/filter"
+	"github.com/liuzhiyi/anys/cache/option"
+	"github.com/liuzhiyi/anys/pkg/comparator"
+	"github.com/liuzhiyi/anys/pkg/utils"
 )
 
 func sharedPrefixLen(a, b []byte) int {

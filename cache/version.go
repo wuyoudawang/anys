@@ -4,11 +4,11 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"anys/cache/iterator"
-	"anys/cache/log"
-	"anys/cache/option"
-	"anys/cache/table"
-	"anys/pkg/comparator"
+	"github.com/liuzhiyi/anys/cache/iterator"
+	"github.com/liuzhiyi/anys/cache/log"
+	"github.com/liuzhiyi/anys/cache/option"
+	"github.com/liuzhiyi/anys/cache/table"
+	"github.com/liuzhiyi/anys/pkg/comparator"
 )
 
 const (

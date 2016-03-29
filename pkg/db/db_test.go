@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"anys/config"
+	"github.com/liuzhiyi/anys/config"
 )
 
 var c = &config.Config{}

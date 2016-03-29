@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"anys/pkg/utils"
+	"github.com/liuzhiyi/anys/pkg/utils"
 )
 
 type Dropper interface {

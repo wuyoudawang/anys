@@ -14,6 +14,6 @@ func Test_Parse(t *testing.T) {
 }
 
 func Test_Include(t *testing.T) {
-	err := c.Include("../anys/*")
+	err := c.Include("../github.com/liuzhiyi/anys/*")
 	fmt.Println(err)
 }
