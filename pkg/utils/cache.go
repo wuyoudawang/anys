@@ -84,7 +84,7 @@ type LruTable struct {
 	list   []*LruNode
 }
 
-// hash列表，碰撞用链表解决
+// hash列表，碰撞直接覆盖
 func NewLruTable() *LruTable {
 	lt := new(LruTable)
 	lt.length = 0
@@ -159,8 +159,8 @@ func (lt *LruTable) Delete(key []byte, hash uint32) *LruNode {
 // 线程安全的lru缓存
 type LruCache struct {
 	m        sync.Mutex
-	lru      LruNode
-	table    LruTable
+	lru      LruNode  //实现lru
+	table    LruTable //hash表
 	capacity int
 	used     int
 }
@@ -249,6 +249,7 @@ func (lc *LruCache) Lookup(key []byte, hash uint32) *LruNode {
 
 func (lc *LruCache) Erase(key []byte, hash uint32) {
 	lc.m.Lock()
+	lc.m.Unlock()
 	e := lc.table.Delete(key, hash)
 	if e != nil {
 		e.delete()

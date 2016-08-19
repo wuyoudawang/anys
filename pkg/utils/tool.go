@@ -579,26 +579,22 @@ func XSS(src string) string {
 
 	set := append(eventTags, labels...)
 
-	found := true
 	subPattern := "((&#[xX]0{0,8}([9ab]);)|(�{0,8}([9|10|13]);))*"
 	pattern := ""
-	for found {
-		for _, label := range set {
-			pattern = ""
-			for i, char := range label {
-				if i > 0 {
-					pattern += subPattern
-				}
-				pattern += string(char)
+	for _, label := range set {
+		pattern = ""
+		for i, char := range label {
+			if i > 0 {
+				pattern += subPattern
 			}
-			reg, err := regexp.Compile(fmt.Sprintf("(?i:%s)", pattern))
-			if err != nil {
-				continue
-			}
-			repl := label[0:2] + "<x>" + label[2:] // add in <> to nerf the tag
-			src = reg.ReplaceAllString(src, repl)
+			pattern += string(char)
 		}
-
+		reg, err := regexp.Compile(fmt.Sprintf("(?i:%s)", pattern))
+		if err != nil {
+			continue
+		}
+		repl := label[0:2] + "<x>" + label[2:] // add in <> to nerf the tag
+		src = reg.ReplaceAllString(src, repl)
 	}
 
 	return src

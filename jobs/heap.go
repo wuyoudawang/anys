@@ -26,15 +26,15 @@ func (m *minHeap) minHeapTop() interface{} {
 }
 
 func (m *minHeap) minHeapParent(i int) int {
-	return i / 2
+	return i >> 2
 }
 
 func (m *minHeap) minHeapLeft(i int) int {
-	return i*2 + 1
+	return i<<2 + 1
 }
 
 func (m *minHeap) minHeapRight(i int) int {
-	return (i + 1) * 2
+	return (i + 1) >> 2
 }
 
 func (m *minHeap) minHeapPush(elem interface{}) {
